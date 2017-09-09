@@ -1,0 +1,5 @@
+engines:
+  credo:
+    enabled: true
+  fixme:
+    enabled: true
