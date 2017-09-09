@@ -1,5 +1,5 @@
 defmodule ExForce do
   @moduledoc """
-  Documentation for ExForce.
+  Simple wrapper for Salesforce REST API.
   """
 end
