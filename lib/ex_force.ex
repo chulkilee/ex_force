@@ -89,6 +89,21 @@ defmodule ExForce do
   end
 
   @doc """
+  Retrieves basic metadata for the specific SObject.
+
+  See [SObject Basic Information](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
+  """
+  @spec basic_info(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
+  def basic_info(name, config) do
+    case request_get("/sobjects/#{name}", config) do
+      {200, raw = %{"recentItems" => recent_items}} ->
+        {:ok, Map.put(raw, "recentItems", Enum.map(recent_items, &SObject.build/1))}
+      {_, raw} ->
+        {:error, raw}
+    end
+  end
+
+  @doc """
   Retrieves a SObject by ID.
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)

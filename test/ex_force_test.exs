@@ -180,6 +180,41 @@ defmodule ExForceTest do
     assert got == %{"actionOverrides" => [], "activateable" => false}
   end
 
+  test "basic_info", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account", fn conn ->
+      resp_body = """
+      {
+        "objectDescribe": {
+          "label": "Account"
+        },
+        "recentItems": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/foo"
+            },
+            "Id": "foo",
+            "Name": "name"
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.basic_info("Account", dummy_config(bypass))
+
+    assert got == %{
+             "objectDescribe" => %{"label" => "Account"},
+             "recentItems" => [
+               %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
+             ]
+           }
+  end
+
   test "get_sobject", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       resp_body = """
