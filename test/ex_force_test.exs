@@ -91,4 +91,26 @@ defmodule ExForceTest do
              "error_description" => "authentication failure"
            }
   end
+
+  test "versions", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data", fn conn ->
+      resp_body = """
+      [
+        {"label": "Winter '11", "url": "/services/data/v20.0", "version": "20.0"},
+        {"label": "Spring '11", "url": "/services/data/v21.0", "version": "21.0"}
+      ]
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.versions(bypass_url(bypass))
+
+    assert got == [
+             %{"label" => "Winter '11", "url" => "/services/data/v20.0", "version" => "20.0"},
+             %{"label" => "Spring '11", "url" => "/services/data/v21.0", "version" => "21.0"}
+           ]
+  end
 end

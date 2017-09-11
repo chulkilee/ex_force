@@ -44,4 +44,17 @@ defmodule ExForce do
         {:error, err}
     end
   end
+
+  @doc """
+  Lists available REST API versions at an instance.
+
+  See [Versions](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_versions.htm)
+  """
+  @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
+  def versions(instance_url) do
+    case Client.request!(:get, instance_url <> "/services/data") do
+      {200, raw} -> {:ok, raw}
+      {_, raw} -> {:error, raw}
+    end
+  end
 end
