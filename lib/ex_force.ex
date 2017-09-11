@@ -127,6 +127,16 @@ defmodule ExForce do
       config
     )
 
+  @doc """
+  Retrieves a SObject by relationship field.
+
+  See [SObject Relationships](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_relationships.htm)
+  """
+  @spec get_sobject_by_relationship(sobject_id, sobject_name, field_name, config_or_func) ::
+          {:ok, SObject.t()} | {:error, any}
+  def get_sobject_by_relationship(id, sobject_name, field_name, fields \\ [], config),
+    do: do_get_sobject("/sobjects/#{sobject_name}/#{id}/#{field_name}", fields, config)
+
   defp do_get_sobject(path, fields \\ [], config) do
     case request_get(path, build_fields_query(fields), config) do
       {200, raw} -> {:ok, SObject.build(raw)}

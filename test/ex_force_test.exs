@@ -295,4 +295,74 @@ defmodule ExForceTest do
 
     assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
   end
+
+  test "get_sobject_by_relationship", %{bypass: bypass} do
+    Bypass.expect_once(
+      bypass,
+      "GET",
+      "/services/data/v40.0/sobjects/Account/foo/Owner",
+      fn conn ->
+        resp_body = """
+        {
+          "attributes": {
+            "type": "User",
+            "url": "/services/data/v40.0/sobjects/Owner/bar"
+          },
+          "Id": "bar",
+          "Name": "name"
+        }
+        """
+
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, resp_body)
+      end
+    )
+
+    {:ok, got} =
+      ExForce.get_sobject_by_relationship("foo", "Account", "Owner", dummy_config(bypass))
+
+    assert got == %SObject{id: "bar", type: "User", data: %{"Id" => "bar", "Name" => "name"}}
+  end
+
+  test "get_sobject_by_relationship with fields", %{bypass: bypass} do
+    Bypass.expect_once(
+      bypass,
+      "GET",
+      "/services/data/v40.0/sobjects/Account/foo/Owner",
+      fn conn ->
+        %{"fields" => "FirstName,LastName"} = URI.decode_query(conn.query_string)
+
+        resp_body = """
+        {
+          "attributes": {
+            "type": "User",
+            "url": "/services/data/v40.0/sobjects/Owner/bar"
+          },
+          "FirstName": "first_name",
+          "LastName": "last_name"
+        }
+        """
+
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, resp_body)
+      end
+    )
+
+    {:ok, got} =
+      ExForce.get_sobject_by_relationship(
+        "foo",
+        "Account",
+        "Owner",
+        ["FirstName", "LastName"],
+        dummy_config(bypass)
+      )
+
+    assert got == %SObject{
+             id: "bar",
+             type: "User",
+             data: %{"FirstName" => "first_name", "LastName" => "last_name"}
+           }
+  end
 end
