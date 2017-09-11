@@ -3,8 +3,9 @@ defmodule ExForce do
   Simple wrapper for Salesforce REST API.
   """
 
-  alias ExForce.{AuthRequest, Client, Config}
+  alias ExForce.{AuthRequest, Client, Config, SObject}
 
+  @type sobject_id :: String.t()
   @type sobject_name :: String.t()
   @type config_or_func :: Config.t() | (-> Config.t())
 
@@ -86,6 +87,26 @@ defmodule ExForce do
       {_, raw} -> {:error, raw}
     end
   end
+
+  @doc """
+  Retrieves a SObject by ID.
+
+  See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
+  """
+  @spec get_sobject(sobject_id, sobject_name, list, config_or_func) ::
+          {:ok, SObject.t()} | {:error, any}
+  def get_sobject(id, name, fields \\ [], config),
+    do: do_get_sobject("/sobjects/#{name}/#{id}", fields, config)
+
+  defp do_get_sobject(path, fields, config) do
+    case request_get(path, build_fields_query(fields), config) do
+      {200, raw} -> {:ok, SObject.build(raw)}
+      {_, raw} -> {:error, raw}
+    end
+  end
+
+  defp build_fields_query([]), do: []
+  defp build_fields_query(fields), do: [fields: Enum.join(fields, ",")]
 
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
 

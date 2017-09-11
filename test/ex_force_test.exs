@@ -2,7 +2,7 @@ defmodule ExForceTest do
   use ExUnit.Case, async: true
   doctest(ExForce)
 
-  alias ExForce.{AuthRequest, Config}
+  alias ExForce.{AuthRequest, Config, SObject}
   alias Plug.Conn
 
   setup do
@@ -178,5 +178,57 @@ defmodule ExForceTest do
 
     {:ok, got} = ExForce.describe_sobject("Account", dummy_config(bypass))
     assert got == %{"actionOverrides" => [], "activateable" => false}
+  end
+
+  test "get_sobject", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      resp_body = """
+      {
+        "attributes": {
+          "type": "Account",
+          "url": "/services/data/v40.0/sobjects/Account/foo"
+        },
+        "Id": "foo",
+        "Name": "name"
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.get_sobject("foo", "Account", dummy_config(bypass))
+    assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
+  end
+
+  test "get_sobject with fields", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      %{"fields" => "Name,Site"} = URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "attributes": {
+          "type": "Account",
+          "url": "/services/data/v40.0/sobjects/Account/foo"
+        },
+        "Id": "foo",
+        "Name": "name",
+        "Site": null
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.get_sobject("foo", "Account", ["Name", "Site"], dummy_config(bypass))
+
+    assert got == %SObject{
+             id: "foo",
+             type: "Account",
+             data: %{"Id" => "foo", "Name" => "name", "Site" => nil}
+           }
   end
 end
