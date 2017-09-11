@@ -415,4 +415,38 @@ defmodule ExForceTest do
              }
            ]
   end
+
+  test "delete_sobject - success", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      Conn.resp(conn, 204, "")
+    end)
+
+    :ok = ExForce.delete_sobject("foo", "Account", dummy_config(bypass))
+  end
+
+  test "delete_sobject - failure", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      resp_body = """
+      [
+        {
+          "errorCode": "NOT_FOUND",
+          "message": "Provided external ID field does not exist or is not accessible: foo"
+        }
+      ]
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(404, resp_body)
+    end)
+
+    {:error, got} = ExForce.delete_sobject("foo", "Account", dummy_config(bypass))
+
+    assert got == [
+             %{
+               "errorCode" => "NOT_FOUND",
+               "message" => "Provided external ID field does not exist or is not accessible: foo"
+             }
+           ]
+  end
 end

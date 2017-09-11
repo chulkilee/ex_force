@@ -160,9 +160,24 @@ defmodule ExForce do
     end
   end
 
+  @doc """
+  Deletes a SObject.
+
+  [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
+  """
+  @spec delete_sobject(sobject_id, sobject_name, config_or_func) :: :ok | {:error, any}
+  def delete_sobject(id, name, config) do
+    case request_delete("/sobjects/#{name}/#{id}", config) do
+      {204, ""} -> :ok
+      {404, errors} -> {:error, errors}
+    end
+  end
+
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
 
   defp request_patch(path, body, config), do: request(:patch, path, [], body, config)
+
+  defp request_delete(path, query \\ [], config), do: request(:delete, path, query, "", config)
 
   defp request(method, path, query, body, config)
 
