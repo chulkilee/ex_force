@@ -12,6 +12,9 @@ defmodule ExForceTest do
 
   defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
+  defp dummy_config(bypass),
+    do: %Config{instance_url: bypass_url(bypass), access_token: "foo", api_version: "40.0"}
+
   test "authenticate - success", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
       ["application/x-www-form-urlencoded" <> _] = Conn.get_req_header(conn, "content-type")
@@ -112,5 +115,50 @@ defmodule ExForceTest do
              %{"label" => "Winter '11", "url" => "/services/data/v20.0", "version" => "20.0"},
              %{"label" => "Spring '11", "url" => "/services/data/v21.0", "version" => "21.0"}
            ]
+  end
+
+  test "resources", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v38.0", fn conn ->
+      resp_body = """
+      {
+        "tooling": "/services/data/v38.0/tooling",
+        "eclair": "/services/data/v38.0/eclair"
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.resources("38.0", dummy_config(bypass))
+
+    assert got == %{
+             "eclair" => "/services/data/v38.0/eclair",
+             "tooling" => "/services/data/v38.0/tooling"
+           }
+  end
+
+  test "resources with config as function", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v38.0", fn conn ->
+      resp_body = """
+      {
+        "tooling": "/services/data/v38.0/tooling",
+        "eclair": "/services/data/v38.0/eclair"
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    f = fn -> dummy_config(bypass) end
+    {:ok, got} = ExForce.resources("38.0", f)
+
+    assert got == %{
+             "eclair" => "/services/data/v38.0/eclair",
+             "tooling" => "/services/data/v38.0/tooling"
+           }
   end
 end
