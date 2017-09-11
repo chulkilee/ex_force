@@ -18,6 +18,10 @@ defmodule ExForce.SObject do
     %__MODULE__{type: type, id: id, data: do_build_data(val)}
   end
 
+  defp do_build(val = %{"attributes" => %{"type" => type}}) do
+    %__MODULE__{type: type, data: do_build_data(val)}
+  end
+
   defp do_build(val), do: val
 
   defp do_build_data(val) do

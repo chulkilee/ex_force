@@ -2,7 +2,7 @@ defmodule ExForceTest do
   use ExUnit.Case, async: true
   doctest(ExForce)
 
-  alias ExForce.{AuthRequest, Config, SObject}
+  alias ExForce.{AuthRequest, Config, QueryResult, SObject}
   alias Plug.Conn
 
   setup do
@@ -448,5 +448,134 @@ defmodule ExForceTest do
                "message" => "Provided external ID field does not exist or is not accessible: foo"
              }
            ]
+  end
+
+  test "query - sobjects", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      %{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"} =
+        URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "totalSize": 1,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/foo"
+            },
+            "Name": "account name",
+            "Owner": {
+              "attributes": {
+                "type": "User",
+                "url": "/services/data/v40.0/sobjects/User/bar"
+              },
+              "Name": "user name"
+            }
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} =
+      ExForce.query("SELECT Name, Owner.Name FROM Account LIMIT 1", dummy_config(bypass))
+
+    assert got == %QueryResult{
+             done: true,
+             next_records_url: nil,
+             records: [
+               %SObject{
+                 id: "foo",
+                 type: "Account",
+                 data: %{
+                   "Name" => "account name",
+                   "Owner" => %SObject{
+                     id: "bar",
+                     type: "User",
+                     data: %{"Name" => "user name"}
+                   }
+                 }
+               }
+             ],
+             total_size: 1
+           }
+  end
+
+  test "query - sobjects with next url", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "totalSize": 500,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-2000",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/foo"
+            },
+            "Name": "account name"
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.query("SELECT Name FROM Account", dummy_config(bypass))
+
+    assert got == %QueryResult{
+             done: false,
+             next_records_url: "/services/data/v40.0/query/queryid-2000",
+             records: [
+               %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
+             ],
+             total_size: 500
+           }
+  end
+
+  test "query - aggregate", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      %{"q" => "SELECT COUNT(Id) count_id FROM Account"} = URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "totalSize": 1,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "AggregateResult"
+            },
+            "count_id": 7
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.query("SELECT COUNT(Id) count_id FROM Account", dummy_config(bypass))
+
+    assert got == %QueryResult{
+             done: true,
+             next_records_url: nil,
+             records: [%SObject{data: %{"count_id" => 7}, type: "AggregateResult"}],
+             total_size: 1
+           }
   end
 end

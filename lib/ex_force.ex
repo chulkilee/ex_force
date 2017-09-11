@@ -3,11 +3,12 @@ defmodule ExForce do
   Simple wrapper for Salesforce REST API.
   """
 
-  alias ExForce.{AuthRequest, Client, Config, SObject}
+  alias ExForce.{AuthRequest, Client, Config, QueryResult, SObject}
 
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
   @type field_name :: String.t()
+  @type soql :: String.t()
   @type config_or_func :: Config.t() | (-> Config.t())
 
   @doc """
@@ -171,6 +172,35 @@ defmodule ExForce do
       {204, ""} -> :ok
       {404, errors} -> {:error, errors}
     end
+  end
+
+  @doc """
+  Excute the SOQL query and get the result of it.
+
+  [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
+  """
+  @spec query(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
+  def query(soql, config) do
+    case request_get("/query", [q: soql], config) do
+      {200, raw} -> {:ok, build_result_set(raw)}
+      {_, raw} -> {:error, raw}
+    end
+  end
+
+  defp build_result_set(resp = %{"records" => records, "totalSize" => total_size}) do
+    result_set =
+      case resp do
+        %{"done" => true} ->
+          %QueryResult{done: true}
+        %{"done" => false, "nextRecordsUrl" => next_records_url} ->
+          %QueryResult{done: false, next_records_url: next_records_url}
+      end
+
+    %QueryResult{
+      result_set
+      | total_size: total_size,
+        records: records |> Enum.map(&SObject.build/1)
+    }
   end
 
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
