@@ -161,4 +161,22 @@ defmodule ExForceTest do
              "tooling" => "/services/data/v38.0/tooling"
            }
   end
+
+  test "describe_sobject", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/describe", fn conn ->
+      resp_body = """
+      {
+        "actionOverrides": [],
+        "activateable": false
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.describe_sobject("Account", dummy_config(bypass))
+    assert got == %{"actionOverrides" => [], "activateable" => false}
+  end
 end

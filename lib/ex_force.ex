@@ -5,6 +5,7 @@ defmodule ExForce do
 
   alias ExForce.{AuthRequest, Client, Config}
 
+  @type sobject_name :: String.t()
   @type config_or_func :: Config.t() | (-> Config.t())
 
   @doc """
@@ -73,6 +74,19 @@ defmodule ExForce do
     end
   end
 
+  @doc """
+  Retrieves extended metadata for the specified SObject.
+
+  See [SObject Describe](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_describe.htm)
+  """
+  @spec describe_sobject(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
+  def describe_sobject(name, config) do
+    case request_get("/sobjects/#{name}/describe", config) do
+      {200, raw} -> {:ok, raw}
+      {_, raw} -> {:error, raw}
+    end
+  end
+
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
 
   defp request(method, path, query, body, config)
@@ -86,7 +100,14 @@ defmodule ExForce do
     ])
   end
 
-  defp build_url(path, [], %Config{instance_url: instance_url}), do: instance_url <> path
+  defp build_url(path, [], %Config{instance_url: instance_url, api_version: api_version}) do
+    case path do
+      "/services/data/v" <> _ ->
+        instance_url <> path
+      "/" <> _ ->
+        instance_url <> "/services/data/v" <> api_version <> path
+    end
+  end
 
   defp build_url(path, query, config = %Config{}),
     do: build_url(path <> "?" <> URI.encode_query(query), [], config)
