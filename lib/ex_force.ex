@@ -7,6 +7,7 @@ defmodule ExForce do
 
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
+  @type field_name :: String.t()
   @type config_or_func :: Config.t() | (-> Config.t())
 
   @doc """
@@ -113,7 +114,20 @@ defmodule ExForce do
   def get_sobject(id, name, fields \\ [], config),
     do: do_get_sobject("/sobjects/#{name}/#{id}", fields, config)
 
-  defp do_get_sobject(path, fields, config) do
+  @doc """
+  Retrieves a SObject based on the value of a specified extneral ID field.
+
+  See [SObject Rows by External ID](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_upsert.htm)
+  """
+  @spec get_sobject_by_external_id(any, field_name, sobject_name, config_or_func) ::
+          {:ok, SObject.t()} | {:error, any}
+  def get_sobject_by_external_id(field_value, field_name, sobject_name, config),
+    do: do_get_sobject(
+      "/sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
+      config
+    )
+
+  defp do_get_sobject(path, fields \\ [], config) do
     case request_get(path, build_fields_query(fields), config) do
       {200, raw} -> {:ok, SObject.build(raw)}
       {_, raw} -> {:error, raw}

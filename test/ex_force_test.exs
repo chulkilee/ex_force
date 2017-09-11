@@ -266,4 +266,33 @@ defmodule ExForceTest do
              data: %{"Id" => "foo", "Name" => "name", "Site" => nil}
            }
   end
+
+  test "get_sobject_by_external_id", %{bypass: bypass} do
+    Bypass.expect_once(
+      bypass,
+      "GET",
+      "/services/data/v40.0/sobjects/Account/Foo__c/foo%20bar",
+      fn conn ->
+        resp_body = """
+        {
+          "attributes": {
+            "type": "Account",
+            "url": "/services/data/v40.0/sobjects/Account/foo"
+          },
+          "Id": "foo",
+          "Name": "name"
+        }
+        """
+
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, resp_body)
+      end
+    )
+
+    {:ok, got} =
+      ExForce.get_sobject_by_external_id("foo bar", "Foo__c", "Account", dummy_config(bypass))
+
+    assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
+  end
 end
