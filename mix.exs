@@ -34,6 +34,9 @@ defmodule ExForce.Mixfile do
 
   defp deps do
     [
+      {:httpoison, "~> 0.13"},
+      {:poison, "~> 3.1"},
+      {:bypass, "~> 0.8", only: :test},
       {:credo, "~> 0.8", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.7", only: :test},
