@@ -147,7 +147,22 @@ defmodule ExForce do
   defp build_fields_query([]), do: []
   defp build_fields_query(fields), do: [fields: Enum.join(fields, ",")]
 
+  @doc """
+  Updates a SObject.
+
+  See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
+  """
+  @spec update_sobject(sobject_id, sobject_name, map, config_or_func) :: :ok | {:error, any}
+  def update_sobject(id, name, attrs, config) do
+    case request_patch("/sobjects/#{name}/#{id}", Poison.encode!(attrs), config) do
+      {204, ""} -> :ok
+      {_, raw} -> {:error, raw}
+    end
+  end
+
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
+
+  defp request_patch(path, body, config), do: request(:patch, path, [], body, config)
 
   defp request(method, path, query, body, config)
 

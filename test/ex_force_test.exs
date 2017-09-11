@@ -365,4 +365,54 @@ defmodule ExForceTest do
              data: %{"FirstName" => "first_name", "LastName" => "last_name"}
            }
   end
+
+  test "update_sobject - success", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      {:ok, raw, conn} = Conn.read_body(conn)
+      expected_body = %{"FirstName" => "first_name"}
+      ^expected_body = Poison.decode!(raw)
+      Conn.resp(conn, 204, "")
+    end)
+
+    :ok =
+      ExForce.update_sobject(
+        "foo",
+        "Account",
+        %{"FirstName" => "first_name"},
+        dummy_config(bypass)
+      )
+  end
+
+  test "update_sobject - failure", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      {:ok, raw, conn} = Conn.read_body(conn)
+      expected_body = %{"x" => "foo"}
+      ^expected_body = Poison.decode!(raw)
+
+      resp_body = """
+        [
+          {
+            "message": "No such column 'x' on sobject of type Account",
+            "errorCode": "INVALID_FIELD"
+          }
+        ]
+      """
+
+      ^expected_body = Poison.decode!(raw)
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(400, resp_body)
+    end)
+
+    {:error, got} =
+      ExForce.update_sobject("foo", "Account", %{"x" => "foo"}, dummy_config(bypass))
+
+    assert got == [
+             %{
+               "errorCode" => "INVALID_FIELD",
+               "message" => "No such column 'x' on sobject of type Account"
+             }
+           ]
+  end
 end
