@@ -651,4 +651,61 @@ defmodule ExForceTest do
              total_size: 500
            }
   end
+
+  test "query_all - sobjects", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
+      %{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"} =
+        URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "totalSize": 1,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/foo"
+            },
+            "Name": "account name",
+            "Owner": {
+              "attributes": {
+                "type": "User",
+                "url": "/services/data/v40.0/sobjects/User/bar"
+              },
+              "Name": "user name"
+            }
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} =
+      ExForce.query_all("SELECT Name, Owner.Name FROM Account LIMIT 1", dummy_config(bypass))
+
+    assert got == %QueryResult{
+             done: true,
+             next_records_url: nil,
+             records: [
+               %SObject{
+                 id: "foo",
+                 type: "Account",
+                 data: %{
+                   "Name" => "account name",
+                   "Owner" => %SObject{
+                     id: "bar",
+                     type: "User",
+                     data: %{"Name" => "user name"}
+                   }
+                 }
+               }
+             ],
+             total_size: 1
+           }
+  end
 end

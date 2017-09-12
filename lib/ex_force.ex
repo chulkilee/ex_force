@@ -209,6 +209,19 @@ defmodule ExForce do
     end
   end
 
+  @doc """
+  Excute the SOQL query and get the result of it, including deleted or archived objects.
+
+  [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
+  """
+  @spec query_all(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
+  def query_all(soql, config) do
+    case request_get("/queryAll", [q: soql], config) do
+      {200, raw} -> {:ok, build_result_set(raw)}
+      {_, raw} -> {:error, raw}
+    end
+  end
+
   defp build_result_set(resp = %{"records" => records, "totalSize" => total_size}) do
     result_set =
       case resp do
