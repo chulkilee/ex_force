@@ -9,6 +9,7 @@ defmodule ExForce do
   @type sobject_name :: String.t()
   @type field_name :: String.t()
   @type soql :: String.t()
+  @type query_id :: String.t()
   @type config_or_func :: Config.t() | (-> Config.t())
 
   @doc """
@@ -187,6 +188,27 @@ defmodule ExForce do
     end
   end
 
+  @doc """
+  Retrieve additional query results for the specified query ID.
+
+  [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
+  """
+  @spec query_retrieve(query_id | String.t(), config_or_func) ::
+          {:ok, QueryResult.t()} | {:error, any}
+  def query_retrieve(query_id_or_url, config) do
+    path =
+      if full_path?(query_id_or_url) do
+        query_id_or_url
+      else
+        "/query/#{query_id_or_url}"
+      end
+
+    case request_get(path, config) do
+      {200, raw} -> {:ok, build_result_set(raw)}
+      {_, raw} -> {:error, raw}
+    end
+  end
+
   defp build_result_set(resp = %{"records" => records, "totalSize" => total_size}) do
     result_set =
       case resp do
@@ -220,12 +242,13 @@ defmodule ExForce do
     ])
   end
 
+  defp full_path?(path), do: String.starts_with?(path, "/services/data/v")
+
   defp build_url(path, [], %Config{instance_url: instance_url, api_version: api_version}) do
-    case path do
-      "/services/data/v" <> _ ->
-        instance_url <> path
-      "/" <> _ ->
-        instance_url <> "/services/data/v" <> api_version <> path
+    if full_path?(path) do
+      instance_url <> path
+    else
+      instance_url <> "/services/data/v" <> api_version <> path
     end
   end
 

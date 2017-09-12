@@ -578,4 +578,77 @@ defmodule ExForceTest do
              total_size: 1
            }
   end
+
+  test "query_retrieve with query id", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+      resp_body = """
+      {
+        "totalSize": 500,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-400",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/foo"
+            },
+            "Name": "account name"
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} = ExForce.query_retrieve("queryid-200", dummy_config(bypass))
+
+    assert got == %QueryResult{
+             done: false,
+             next_records_url: "/services/data/v40.0/query/queryid-400",
+             records: [
+               %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
+             ],
+             total_size: 500
+           }
+  end
+
+  test "query_retrieve with next url", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+      resp_body = """
+      {
+        "totalSize": 500,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-400",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/foo"
+            },
+            "Name": "account name"
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, got} =
+      ExForce.query_retrieve("/services/data/v40.0/query/queryid-200", dummy_config(bypass))
+
+    assert got == %QueryResult{
+             done: false,
+             next_records_url: "/services/data/v40.0/query/queryid-400",
+             records: [
+               %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
+             ],
+             total_size: 500
+           }
+  end
 end
