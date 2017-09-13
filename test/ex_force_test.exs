@@ -233,7 +233,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.get_sobject("foo", "Account", dummy_config(bypass))
+    {:ok, got} = ExForce.get_sobject("foo", "Account", [], dummy_config(bypass))
     assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
   end
 
@@ -320,7 +320,7 @@ defmodule ExForceTest do
     )
 
     {:ok, got} =
-      ExForce.get_sobject_by_relationship("foo", "Account", "Owner", dummy_config(bypass))
+      ExForce.get_sobject_by_relationship("foo", "Account", "Owner", [], dummy_config(bypass))
 
     assert got == %SObject{id: "bar", type: "User", data: %{"Id" => "bar", "Name" => "name"}}
   end

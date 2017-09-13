@@ -3,7 +3,7 @@ defmodule ExForce do
   Simple wrapper for Salesforce REST API.
   """
 
-  alias ExForce.{AuthRequest, Client, Config, QueryResult, SObject}
+  alias ExForce.{Auth, AuthRequest, Client, Config, QueryResult, SObject}
 
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
@@ -53,6 +53,12 @@ defmodule ExForce do
   end
 
   @doc """
+  Get default config from `ExForce.Auth`
+  """
+  @spec default_config() :: Config.t() | no_return
+  def default_config, do: Auth.get!()
+
+  @doc """
   Lists available REST API versions at an instance.
 
   See [Versions](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_versions.htm)
@@ -71,7 +77,7 @@ defmodule ExForce do
   See [Resources by Version](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_discoveryresource.htm)
   """
   @spec resources(String.t(), config_or_func) :: {:ok, map} | {:error, any}
-  def resources(version, config) do
+  def resources(version, config \\ default_config()) do
     case request_get("/services/data/v#{version}", config) do
       {200, raw} -> {:ok, raw}
       {_, raw} -> {:error, raw}
@@ -84,7 +90,7 @@ defmodule ExForce do
   See [SObject Describe](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_describe.htm)
   """
   @spec describe_sobject(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
-  def describe_sobject(name, config) do
+  def describe_sobject(name, config \\ default_config()) do
     case request_get("/sobjects/#{name}/describe", config) do
       {200, raw} -> {:ok, raw}
       {_, raw} -> {:error, raw}
@@ -97,7 +103,7 @@ defmodule ExForce do
   See [SObject Basic Information](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
   @spec basic_info(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
-  def basic_info(name, config) do
+  def basic_info(name, config \\ default_config()) do
     case request_get("/sobjects/#{name}", config) do
       {200, raw = %{"recentItems" => recent_items}} ->
         {:ok, Map.put(raw, "recentItems", Enum.map(recent_items, &SObject.build/1))}
@@ -113,7 +119,7 @@ defmodule ExForce do
   """
   @spec get_sobject(sobject_id, sobject_name, list, config_or_func) ::
           {:ok, SObject.t()} | {:error, any}
-  def get_sobject(id, name, fields \\ [], config),
+  def get_sobject(id, name, fields, config \\ default_config()),
     do: do_get_sobject("/sobjects/#{name}/#{id}", fields, config)
 
   @doc """
@@ -123,11 +129,16 @@ defmodule ExForce do
   """
   @spec get_sobject_by_external_id(any, field_name, sobject_name, config_or_func) ::
           {:ok, SObject.t()} | {:error, any}
-  def get_sobject_by_external_id(field_value, field_name, sobject_name, config),
-    do: do_get_sobject(
-      "/sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
-      config
-    )
+  def get_sobject_by_external_id(
+        field_value,
+        field_name,
+        sobject_name,
+        config \\ default_config()
+      ),
+      do: do_get_sobject(
+        "/sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
+        config
+      )
 
   @doc """
   Retrieves a SObject by relationship field.
@@ -136,8 +147,13 @@ defmodule ExForce do
   """
   @spec get_sobject_by_relationship(sobject_id, sobject_name, field_name, config_or_func) ::
           {:ok, SObject.t()} | {:error, any}
-  def get_sobject_by_relationship(id, sobject_name, field_name, fields \\ [], config),
-    do: do_get_sobject("/sobjects/#{sobject_name}/#{id}/#{field_name}", fields, config)
+  def get_sobject_by_relationship(
+        id,
+        sobject_name,
+        field_name,
+        fields,
+        config \\ default_config()
+      ), do: do_get_sobject("/sobjects/#{sobject_name}/#{id}/#{field_name}", fields, config)
 
   defp do_get_sobject(path, fields \\ [], config) do
     case request_get(path, build_fields_query(fields), config) do
@@ -155,7 +171,7 @@ defmodule ExForce do
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
   @spec update_sobject(sobject_id, sobject_name, map, config_or_func) :: :ok | {:error, any}
-  def update_sobject(id, name, attrs, config) do
+  def update_sobject(id, name, attrs, config \\ default_config()) do
     case request_patch("/sobjects/#{name}/#{id}", Poison.encode!(attrs), config) do
       {204, ""} -> :ok
       {_, raw} -> {:error, raw}
@@ -168,7 +184,7 @@ defmodule ExForce do
   [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
   @spec delete_sobject(sobject_id, sobject_name, config_or_func) :: :ok | {:error, any}
-  def delete_sobject(id, name, config) do
+  def delete_sobject(id, name, config \\ default_config()) do
     case request_delete("/sobjects/#{name}/#{id}", config) do
       {204, ""} -> :ok
       {404, errors} -> {:error, errors}
@@ -181,7 +197,7 @@ defmodule ExForce do
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
   @spec query(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
-  def query(soql, config) do
+  def query(soql, config \\ default_config()) do
     case request_get("/query", [q: soql], config) do
       {200, raw} -> {:ok, build_result_set(raw)}
       {_, raw} -> {:error, raw}
@@ -195,7 +211,7 @@ defmodule ExForce do
   """
   @spec query_retrieve(query_id | String.t(), config_or_func) ::
           {:ok, QueryResult.t()} | {:error, any}
-  def query_retrieve(query_id_or_url, config) do
+  def query_retrieve(query_id_or_url, config \\ default_config()) do
     path =
       if full_path?(query_id_or_url) do
         query_id_or_url
@@ -215,7 +231,7 @@ defmodule ExForce do
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
   """
   @spec query_all(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
-  def query_all(soql, config) do
+  def query_all(soql, config \\ default_config()) do
     case request_get("/queryAll", [q: soql], config) do
       {200, raw} -> {:ok, build_result_set(raw)}
       {_, raw} -> {:error, raw}
