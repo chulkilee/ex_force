@@ -1,6 +1,47 @@
 defmodule ExForce do
   @moduledoc """
   Simple wrapper for Salesforce REST API.
+
+  ## Usage
+
+  ```elixir
+  auth_request = %ExForce.AuthRequest{
+    endpoint: "https://login.salesforce.com",
+    api_version: "40.0",
+    client_id: "...",
+    client_secret: "...",
+    username: "user@example.com",
+    password: "...",
+    security_token: "..."
+  }
+
+  {:ok, config} = ExForce.authenticate(auth_request)
+
+  {:ok, %ExForce.QueryResult{records: records}} =
+    ExForce.query("SELECT Name FROM Account", config)
+
+  names = Enum.map(records, &(Map.fetch!(&1.data, "Name")))
+  ```
+
+  Add following configuration to use `ExForce.default_config/0`.
+
+  ```elixir
+  config :ex_force,
+    endpoint: "https://login.salesforce.com",
+    api_version: "40.0",
+    client_id: "...",
+    client_secret: "...",
+    username: "user@example.com",
+    password: "...",
+    security_token: "..."
+  ```
+
+  Functions taking `ExForce.Config` use `ExForce.default_config/0` as default value.
+
+  ```elixir
+  {:ok, %ExForce.QueryResult{records: [%ExForce.SObject{data: %{"counts" => counts }}]}} =
+    ExForce.query("SELECT COUNT(Id) counts FROM Account")
+  ```
   """
 
   alias ExForce.{Auth, AuthRequest, Client, Config, QueryResult, SObject}
