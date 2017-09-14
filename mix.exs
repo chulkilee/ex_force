@@ -49,7 +49,10 @@ defmodule ExForce.Mixfile do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/chulkilee/ex_force"},
+      links: %{
+        "GitHub" => "https://github.com/chulkilee/ex_force",
+        "Changelog" => "https://github.com/chulkilee/ex_force/blob/master/CHANGELOG.md"
+      },
       maintainers: ["Chulki Lee"]
     ]
   end
