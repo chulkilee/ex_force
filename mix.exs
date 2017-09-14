@@ -19,9 +19,7 @@ defmodule ExForce.Mixfile do
       name: "ExForce",
       source_url: "https://github.com/chulkilee/ex_force",
       homepage_url: "https://github.com/chulkilee/ex_force",
-      docs: [
-        main: "ExForce",
-      ],
+      docs: [main: "ExForce"],
 
       # test
       test_coverage: [tool: ExCoveralls]
@@ -44,7 +42,7 @@ defmodule ExForce.Mixfile do
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.7", only: :test},
       {:ex_doc, "~> 0.16", only: :dev, runtime: false},
-      {:inch_ex, "~> 0.5", only: :docs},
+      {:inch_ex, "~> 0.5", only: :docs}
     ]
   end
 
@@ -52,7 +50,7 @@ defmodule ExForce.Mixfile do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/chulkilee/ex_force"},
-      maintainers: ["Chulki Lee"],
+      maintainers: ["Chulki Lee"]
     ]
   end
 end
