@@ -16,7 +16,7 @@ defmodule ExForce.Auth do
   @doc """
   Starts a `GenServer` process with given options.
   """
-  @spec start_link({AuthRequest.t()}, GenServer.options) :: GenServer.on_start()
+  @spec start_link({AuthRequest.t()}, GenServer.options()) :: GenServer.on_start()
   def start_link(args, options) do
     GenServer.start_link(__MODULE__, args, options)
   end
