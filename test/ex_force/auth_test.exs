@@ -1,4 +1,4 @@
-defmodule AuthTest do
+defmodule ExForce.AuthTest do
   use ExUnit.Case, async: true
   doctest(ExForce.Auth)
 

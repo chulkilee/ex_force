@@ -1,4 +1,4 @@
-defmodule ClientTest do
+defmodule ExForce.ClientTest do
   use ExUnit.Case, async: true
   doctest(ExForce.Client)
 
