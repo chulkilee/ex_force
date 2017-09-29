@@ -51,6 +51,7 @@ defmodule ExForce.Auth do
     case ExForce.authenticate(auth_request) do
       {:ok, config} ->
         {:reply, {:ok, config}, {auth_request, config}}
+
       {:error, error} ->
         {:reply, {:error, error}, {auth_request}}
     end

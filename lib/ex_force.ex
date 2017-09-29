@@ -88,6 +88,7 @@ defmodule ExForce do
             api_version: request.api_version
           }
         }
+
       {400, err} ->
         {:error, err}
     end
@@ -148,6 +149,7 @@ defmodule ExForce do
     case request_get("/sobjects/#{name}", config) do
       {200, raw = %{"recentItems" => recent_items}} ->
         {:ok, Map.put(raw, "recentItems", Enum.map(recent_items, &SObject.build/1))}
+
       {_, raw} ->
         {:error, raw}
     end
@@ -284,6 +286,7 @@ defmodule ExForce do
       case resp do
         %{"done" => true} ->
           %QueryResult{done: true}
+
         %{"done" => false, "nextRecordsUrl" => next_records_url} ->
           %QueryResult{done: false, next_records_url: next_records_url}
       end
