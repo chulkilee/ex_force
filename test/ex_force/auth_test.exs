@@ -2,7 +2,8 @@ defmodule ExForce.AuthTest do
   use ExUnit.Case, async: true
   doctest(ExForce.Auth)
 
-  alias ExForce.{Auth, AuthRequest, Config}
+  alias ExForce.{Auth, Config}
+  alias ExForce.OAuth.Config, as: OAuthConfig
   alias Plug.Conn
 
   setup do
@@ -20,7 +21,10 @@ defmodule ExForce.AuthTest do
       {
         "access_token": "access_token_foo",
         "instance_url": "https://example.com",
-        "issued_at": "1505149885697"
+        "id": "https://example.com/id/fakeid",
+        "token_type": "Bearer",
+        "issued_at": "1505149885697",
+        "signature": "RNy9G2E/bedQgdKoiqPGFgeIaxH0NR774kf1fwJvo8Y="
       }
       """
 
@@ -29,26 +33,14 @@ defmodule ExForce.AuthTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    auth_request = %AuthRequest{
-      endpoint: bypass_url(bypass),
-      client_id: "client_id_foo",
-      client_secret: "client_secret_bar",
-      username: "username_foo",
-      password: "password_bar",
-      security_token: "secret_token_foo",
-      api_version: "40.0"
-    }
+    {:ok, pid} = Auth.start_link(args(bypass), name: DummyAuth)
 
-    {:ok, pid} = Auth.start_link({auth_request}, name: DummyAuth)
-
-    {:ok, expected_issued_at, 0} = DateTime.from_iso8601("2017-09-11T17:11:25.697Z")
     {:ok, got} = Auth.get(DummyAuth)
 
     assert got == %Config{
              access_token: "access_token_foo",
              api_version: "40.0",
-             instance_url: "https://example.com",
-             issued_at: expected_issued_at
+             instance_url: "https://example.com"
            }
 
     ^got = Auth.get!(DummyAuth)
@@ -70,17 +62,7 @@ defmodule ExForce.AuthTest do
       |> Conn.resp(400, resp_body)
     end)
 
-    auth_request = %AuthRequest{
-      endpoint: bypass_url(bypass),
-      client_id: "client_id_foo",
-      client_secret: "client_secret_bar",
-      username: "username_foo",
-      password: "password_bar",
-      security_token: "secret_token_foo",
-      api_version: "40.0"
-    }
-
-    {:ok, pid} = Auth.start_link({auth_request}, name: DummyAuth)
+    {:ok, pid} = Auth.start_link(args(bypass), name: DummyAuth)
 
     {:error, got} = Auth.get(DummyAuth)
 
@@ -90,5 +72,17 @@ defmodule ExForce.AuthTest do
            }
 
     GenServer.stop(pid)
+  end
+
+  defp args(bypass) do
+    oauth_config = %OAuthConfig{
+      endpoint: bypass_url(bypass),
+      client_id: "client_id_foo",
+      client_secret: "client_secret_bar"
+    }
+
+    credentials = {"username_foo", "password_barsecret_token_foo"}
+    api_version = "40.0"
+    {oauth_config, credentials, api_version}
   end
 end

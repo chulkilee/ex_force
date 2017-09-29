@@ -5,17 +5,16 @@ defmodule ExForce do
   ## Usage
 
   ```elixir
-  auth_request = %ExForce.AuthRequest{
+  oauth_config = %ExForce.OAuth.Config{
     endpoint: "https://login.salesforce.com",
-    api_version: "40.0",
     client_id: "...",
-    client_secret: "...",
-    username: "user@example.com",
-    password: "...",
-    security_token: "..."
+    client_secret: "..."
   }
 
-  {:ok, config} = ExForce.authenticate(auth_request)
+  {:ok, config} =
+    :password
+    |> ExForce.OAuth.get_token({"username", "password"}, oauth_config)
+    |> ExForce.Config.from("40.0")
 
   {:ok, %ExForce.QueryResult{records: records}} =
     ExForce.query("SELECT Name FROM Account", config)
@@ -44,7 +43,7 @@ defmodule ExForce do
   ```
   """
 
-  alias ExForce.{Auth, AuthRequest, Client, Config, QueryResult, SObject}
+  alias ExForce.{Auth, Client, Config, QueryResult, SObject}
 
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
@@ -52,47 +51,6 @@ defmodule ExForce do
   @type soql :: String.t()
   @type query_id :: String.t()
   @type config_or_func :: Config.t() | (-> Config.t())
-
-  @doc """
-  Authenticate with username and password.
-
-  See [Understanding the Username-Password OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_username_password_oauth_flow.htm)
-  """
-  @spec authenticate(AuthRequest.t()) :: {:ok, Config.t()} | {:error, any}
-  def authenticate(request = %AuthRequest{}) do
-    form = [
-      grant_type: "password",
-      client_id: request.client_id,
-      client_secret: request.client_secret,
-      username: request.username,
-      password: request.password <> to_string(request.security_token)
-    ]
-
-    url = request.endpoint <> "/services/oauth2/token"
-
-    case Client.request!(:post, url, {:form, form}) do
-      {
-        200,
-        %{
-          "access_token" => access_token,
-          "instance_url" => instance_url,
-          "issued_at" => issued_at
-        }
-      } ->
-        {
-          :ok,
-          %Config{
-            access_token: access_token,
-            instance_url: instance_url,
-            issued_at: DateTime.from_unix!(String.to_integer(issued_at), :millisecond),
-            api_version: request.api_version
-          }
-        }
-
-      {400, err} ->
-        {:error, err}
-    end
-  end
 
   @doc """
   Get default config from `ExForce.Auth`
