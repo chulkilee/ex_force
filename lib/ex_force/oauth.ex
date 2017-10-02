@@ -13,16 +13,30 @@ defmodule ExForce.OAuth do
 
   @doc """
   Returns the authorize url based on the configuration.
-  """
-  @spec authorize_url(Config.t(), String.t()) :: String.t()
-  def authorize_url(%Config{endpoint: endpoint, client_id: client_id}, redirect_uri) do
-    query = [
-      response_type: "code",
-      client_id: client_id,
-      redirect_uri: redirect_uri
-    ]
 
-    endpoint <> "/services/oauth2/authorize?" <> URI.encode_query(query)
+  - `:authorization_code`: [Understanding the Web Server OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_web_server_oauth_flow.htm)
+  - `:token`: [Understanding the User-Agent OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_user_agent_oauth_flow.htm)
+  """
+  def authorize_url(grant_type, args, config)
+
+  @spec authorize_url(:authorization_code, keyword(), Config.t()) :: String.t()
+  def authorize_url(:authorization_code, params, %Config{endpoint: endpoint, client_id: client_id}) do
+    query_string =
+      [response_type: "code", client_id: client_id]
+      |> Keyword.merge(params)
+      |> URI.encode_query()
+
+    endpoint <> "/services/oauth2/authorize?" <> query_string
+  end
+
+  @spec authorize_url(:token, keyword(), Config.t()) :: String.t()
+  def authorize_url(:token, params, %Config{endpoint: endpoint, client_id: client_id}) do
+    query_string =
+      [response_type: "token", client_id: client_id]
+      |> Keyword.merge(params)
+      |> URI.encode_query()
+
+    endpoint <> "/services/oauth2/authorize?" <> query_string
   end
 
   @doc """

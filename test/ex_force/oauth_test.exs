@@ -17,11 +17,26 @@ defmodule ExForce.OAuthTest do
     {:ok, bypass: bypass}
   end
 
-  test "authorize_url", %{bypass: bypass} do
+  test "authorize_url(:authorization_code)", %{bypass: bypass} do
     config = get_config(bypass)
 
-    assert OAuth.authorize_url(config, "http://127.0.0.1:80/foo") ==
-             "http://127.0.0.1:#{bypass.port}/services/oauth2/authorize?response_type=code&client_id=client_id_foo&redirect_uri=http%3A%2F%2F127.0.0.1%3A80%2Ffoo"
+    assert OAuth.authorize_url(
+             :authorization_code,
+             [redirect_uri: "http://127.0.0.1:80/foo", scope: "api refresh_token"],
+             config
+           ) ==
+             "http://127.0.0.1:#{bypass.port}/services/oauth2/authorize?response_type=code&client_id=client_id_foo&redirect_uri=http%3A%2F%2F127.0.0.1%3A80%2Ffoo&scope=api+refresh_token"
+  end
+
+  test "authorize_url(:token)", %{bypass: bypass} do
+    config = get_config(bypass)
+
+    assert OAuth.authorize_url(
+             :token,
+             [redirect_uri: "http://127.0.0.1:80/foo", scope: "api refresh_token"],
+             config
+           ) ==
+             "http://127.0.0.1:#{bypass.port}/services/oauth2/authorize?response_type=token&client_id=client_id_foo&redirect_uri=http%3A%2F%2F127.0.0.1%3A80%2Ffoo&scope=api+refresh_token"
   end
 
   test "get_token(:authorization_code) - success", %{bypass: bypass} do
