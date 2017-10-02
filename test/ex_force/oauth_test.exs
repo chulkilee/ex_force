@@ -75,7 +75,9 @@ defmodule ExForce.OAuthTest do
     config = get_config(bypass)
 
     {:ok, expected_issued_at, 0} = DateTime.from_iso8601("2017-09-11T17:11:25.697Z")
-    {:ok, resp} = OAuth.get_token(:authorization_code, {@code, @redirect_uri}, config)
+
+    {:ok, resp} =
+      OAuth.get_token(:authorization_code, {@code, [redirect_uri: @redirect_uri]}, config)
 
     assert resp == %Response{
              access_token: "access_token_foo",
@@ -111,11 +113,10 @@ defmodule ExForce.OAuthTest do
 
     config = get_config(bypass)
 
-    {:error, :invalid_signature} =
-      OAuth.get_token(:authorization_code, {@code, @redirect_uri}, config)
+    {:error, :invalid_signature} = OAuth.get_token(:authorization_code, @code, config)
   end
 
-  test "get_token(:authorization_code) - failure: :invalid_signature", %{bypass: bypass} do
+  test "get_token(:authorization_code) - failure: :invalid_grant", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
       resp_body = """
       {
@@ -131,7 +132,7 @@ defmodule ExForce.OAuthTest do
 
     config = get_config(bypass)
 
-    {:error, resp} = OAuth.get_token(:authorization_code, {@code, @redirect_uri}, config)
+    {:error, resp} = OAuth.get_token(:authorization_code, @code, config)
 
     assert resp == %{
              "error" => "invalid_grant",

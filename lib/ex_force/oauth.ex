@@ -60,16 +60,20 @@ defmodule ExForce.OAuth do
     |> do_get_token(config)
   end
 
-  @spec get_token(:authorization_code, {code, redirect_uri}, Config.t()) ::
+  @spec get_token(:authorization_code, String.t() | {String.t() | keyword}, Config.t()) ::
           {:ok, Response.t()} | {:error, :invalid_signature | term}
-  def get_token(:authorization_code, {code, redirect_uri}, config = %Config{}) do
+
+  def get_token(:authorization_code, {code, params}, config = %Config{}) do
     config
     |> token_form()
     |> Keyword.put(:grant_type, "authorization_code")
-    |> Keyword.put(:redirect_uri, redirect_uri)
     |> Keyword.put(:code, code)
+    |> Keyword.merge(params)
     |> do_get_token(config)
   end
+
+  def get_token(:authorization_code, code, config),
+    do: get_token(:authorization_code, {code, []}, config)
 
   @spec get_token(:refresh_token, Response.refresh_token(), Config.t()) ::
           {:ok, Response.t()} | {:error, :invalid_signature | term}
