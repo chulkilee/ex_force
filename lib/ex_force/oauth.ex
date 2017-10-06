@@ -60,7 +60,7 @@ defmodule ExForce.OAuth do
     |> do_get_token(config)
   end
 
-  @spec get_token(:authorization_code, String.t() | {String.t() | keyword}, Config.t()) ::
+  @spec get_token(:authorization_code, String.t() | {String.t(), keyword}, Config.t()) ::
           {:ok, Response.t()} | {:error, :invalid_signature | term}
 
   def get_token(:authorization_code, {code, params}, config = %Config{}) do
