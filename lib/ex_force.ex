@@ -22,20 +22,8 @@ defmodule ExForce do
   names = Enum.map(records, &(Map.fetch!(&1.data, "Name")))
   ```
 
-  Add following configuration to use `ExForce.default_config/0`.
-
-  ```elixir
-  config :ex_force,
-    endpoint: "https://login.salesforce.com",
-    api_version: "40.0",
-    client_id: "...",
-    client_secret: "...",
-    username: "user@example.com",
-    password: "...",
-    security_token: "..."
-  ```
-
-  Functions taking `ExForce.Config` use `ExForce.default_config/0` as default value.
+  Or you can use `ExForce.Auth` to provide default config for functions taking `ExForce.Config`.
+  See `ExForce.Auth` for configuration details.
 
   ```elixir
   {:ok, %ExForce.QueryResult{records: [%ExForce.SObject{data: %{"counts" => counts }}]}} =

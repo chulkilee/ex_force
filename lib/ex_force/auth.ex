@@ -1,6 +1,38 @@
 defmodule ExForce.Auth do
   @moduledoc """
   `GenServer` to authenticate and return `ExForce.Config`.
+
+  ## Configuration
+
+  You can pass all configuration via Mix.
+
+  ```elixir
+  config :ex_force, ExForce,Auth
+    endpoint: "https://login.salesforce.com",
+    client_id: "...",
+    client_secret: "...",
+    username: "user@example.com",
+    password: "...",
+    security_token: "...",
+    api_version: "40.0"
+  ```
+
+  Or you can load all configuration from system environment variables (using `System.get_env/1`).
+
+  ```elixir
+  config :ex_force, ExForce,Auth
+    load_from_system_env: true
+  ```
+
+  In this case, following system environment variables will be used.
+
+  - `SALESFORCE_ENDPOINT`
+  - `SALESFORCE_CLIENT_ID`
+  - `SALESFORCE_CLIENT_SECRET`
+  - `SALESFORCE_USERNAME`
+  - `SALESFORCE_PASSWORD`
+  - `SALESFORCE_SECURITY_TOKEN`
+  - `SALESFORCE_API_VERSION`
   """
 
   use GenServer
@@ -8,12 +40,6 @@ defmodule ExForce.Auth do
   alias ExForce.Config
   alias ExForce.OAuth
   alias ExForce.OAuth.Config, as: OAuthConfig
-
-  @type username :: String.t()
-  @type password :: String.t()
-  @type api_version :: String.t()
-
-  @type args :: {OAuthConfig.t(), {username, password}, api_version}
 
   defmodule State do
     @moduledoc false
@@ -36,28 +62,55 @@ defmodule ExForce.Auth do
   @doc """
   Starts a `GenServer` process using the module as its name.
   """
-  @spec start_link(args) :: GenServer.on_start()
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(args), do: start_link(args, name: __MODULE__)
 
   @doc """
   Starts a `GenServer` process with given options.
   """
-  @spec start_link(args, GenServer.options()) :: GenServer.on_start()
+  @spec start_link(keyword(), GenServer.options()) :: GenServer.on_start()
   def start_link(args, options) do
     GenServer.start_link(__MODULE__, args, options)
   end
 
   @impl true
-  def init({oauth_config = %OAuthConfig{}, {username, password}, api_version}) do
-    state = %State{
-      oauth_config: oauth_config,
-      username: username,
-      password: password,
-      api_version: api_version,
+  def init(args) do
+    {
+      :ok,
+      args
+      |> get_config()
+      |> build_state()
+    }
+  end
+
+  defp get_config(config) do
+    if config[:load_from_system_env] do
+      [
+        endpoint: System.get_env("SALESFORCE_ENDPOINT"),
+        client_id: System.get_env("SALESFORCE_CLIENT_ID"),
+        client_secret: System.get_env("SALESFORCE_CLIENT_SECRET"),
+        username: System.get_env("SALESFORCE_USERNAME"),
+        password: System.get_env("SALESFORCE_PASSWORD"),
+        security_token: System.get_env("SALESFORCE_SECURITY_TOKEN"),
+        api_version: System.get_env("SALESFORCE_API_VERSION")
+      ]
+    else
+      config
+    end
+  end
+
+  defp build_state(config) do
+    %State{
+      oauth_config: %OAuthConfig{
+        endpoint: config[:endpoint],
+        client_id: config[:client_id],
+        client_secret: config[:client_secret]
+      },
+      username: config[:username],
+      password: to_string(config[:password]) <> to_string(config[:security_token]),
+      api_version: config[:api_version],
       current: nil
     }
-
-    {:ok, state}
   end
 
   @doc """

@@ -3,7 +3,6 @@ defmodule ExForce.AuthTest do
   doctest(ExForce.Auth)
 
   alias ExForce.{Auth, Config}
-  alias ExForce.OAuth.Config, as: OAuthConfig
   alias Plug.Conn
 
   setup do
@@ -13,9 +12,19 @@ defmodule ExForce.AuthTest do
 
   defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
-  test "get_config - success", %{bypass: bypass} do
+  test "get - success", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
       ["application/x-www-form-urlencoded" <> _] = Conn.get_req_header(conn, "content-type")
+
+      {:ok, raw, conn} = Conn.read_body(conn)
+
+      assert URI.decode_query(raw) == %{
+               "client_id" => "client_id_foo",
+               "client_secret" => "client_secret_bar",
+               "grant_type" => "password",
+               "password" => "password_bar",
+               "username" => "username_foo"
+             }
 
       resp_body = """
       {
@@ -48,7 +57,56 @@ defmodule ExForce.AuthTest do
     GenServer.stop(pid)
   end
 
-  test "get_config - failure", %{bypass: bypass} do
+  test "get with load_from_system_env: success" do
+    assert System.get_env("SALESFORCE_ENDPOINT") == "http://127.0.0.1:1234",
+           "env vars are not set for test; see env.global section of .travis.yml"
+
+    bypass = Bypass.open(port: 1234)
+
+    Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
+      ["application/x-www-form-urlencoded" <> _] = Conn.get_req_header(conn, "content-type")
+      {:ok, raw, conn} = Conn.read_body(conn)
+
+      assert URI.decode_query(raw) == %{
+               "client_id" => "client_id_env",
+               "client_secret" => "client_secret_env",
+               "grant_type" => "password",
+               "password" => "password_envsecurity_token_env",
+               "username" => "username_env"
+             }
+
+      resp_body = """
+      {
+        "access_token": "access_token_foo",
+        "instance_url": "https://example.com",
+        "id": "https://example.com/id/fakeid",
+        "token_type": "Bearer",
+        "issued_at": "1505149885697",
+        "signature": "7wSn/rMpE/yycne6yRQnudaxddTC5hXrslU0R1bQb8M="
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    {:ok, pid} = Auth.start_link([load_from_system_env: true], name: DummyAuth)
+
+    {:ok, got} = Auth.get(DummyAuth)
+
+    assert got == %Config{
+             access_token: "access_token_foo",
+             api_version: "api_version_env",
+             instance_url: "https://example.com"
+           }
+
+    ^got = Auth.get!(DummyAuth)
+
+    GenServer.stop(pid)
+  end
+
+  test "get - failure", %{bypass: bypass} do
     Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
       resp_body = """
       {
@@ -75,14 +133,14 @@ defmodule ExForce.AuthTest do
   end
 
   defp args(bypass) do
-    oauth_config = %OAuthConfig{
+    [
       endpoint: bypass_url(bypass),
       client_id: "client_id_foo",
-      client_secret: "client_secret_bar"
-    }
-
-    credentials = {"username_foo", "password_barsecret_token_foo"}
-    api_version = "40.0"
-    {oauth_config, credentials, api_version}
+      client_secret: "client_secret_bar",
+      username: "username_foo",
+      password: "password_bar",
+      secret_token: "secret_token_foo",
+      api_version: "40.0"
+    ]
   end
 end
