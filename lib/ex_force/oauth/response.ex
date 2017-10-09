@@ -14,9 +14,9 @@ defmodule ExForce.OAuth.Response do
           signature: String.t(),
           access_token: String.t(),
           refresh_token: refresh_token
-          | nil,
+                         | nil,
           scope: String.t()
-          | nil
+                 | nil
         }
 
   defstruct [

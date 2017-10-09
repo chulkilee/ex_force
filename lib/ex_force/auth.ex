@@ -53,7 +53,7 @@ defmodule ExForce.Auth do
             password: String.t(),
             api_version: String.t(),
             current: Config.t()
-            | nil
+                     | nil
           }
 
     defstruct [:oauth_config, :username, :password, :api_version, :current]
@@ -131,7 +131,8 @@ defmodule ExForce.Auth do
 
   @impl true
   def handle_call(:authenticate, _from, state = %State{current: current})
-      when not is_nil(current), do: {:reply, {:ok, current}, state}
+      when not is_nil(current),
+      do: {:reply, {:ok, current}, state}
 
   @impl true
   def handle_call(

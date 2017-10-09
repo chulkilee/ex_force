@@ -38,7 +38,7 @@ defmodule ExForce do
   @type field_name :: String.t()
   @type soql :: String.t()
   @type query_id :: String.t()
-  @type config_or_func :: Config.t() | (-> Config.t())
+  @type config_or_func :: Config.t() | (() -> Config.t())
 
   @doc """
   Get default config from `ExForce.Auth`
@@ -142,7 +142,8 @@ defmodule ExForce do
         field_name,
         fields,
         config \\ default_config()
-      ), do: do_get_sobject("/sobjects/#{sobject_name}/#{id}/#{field_name}", fields, config)
+      ),
+      do: do_get_sobject("/sobjects/#{sobject_name}/#{id}/#{field_name}", fields, config)
 
   defp do_get_sobject(path, fields \\ [], config) do
     case request_get(path, build_fields_query(fields), config) do
