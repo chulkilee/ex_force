@@ -2,7 +2,7 @@
 
 ## Code formatting
 
-Use [code_formatter](https://github.com/whatyouhide/code_formatter).
+Run `mix format` from the master branch of [elixir](https://github.com/elixir-lang/elixir).
 
 ## Running tests
 
