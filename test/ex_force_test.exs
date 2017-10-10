@@ -499,6 +499,75 @@ defmodule ExForceTest do
            }
   end
 
+  test "query_stream", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "totalSize": 4,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-200",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account1"
+            },
+            "Name": "account1"
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account2"
+            },
+            "Name": "account2"
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+      resp_body = """
+      {
+        "totalSize": 4,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account3"
+            }
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account4"
+            }
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    got =
+      "SELECT Name FROM Account"
+      |> ExForce.query_stream(dummy_config(bypass))
+      |> Enum.map(fn %SObject{id: id} -> id end)
+      |> Enum.to_list()
+
+    assert got == ["account1", "account2", "account3", "account4"]
+  end
+
   test "query_retrieve with query id", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
       resp_body = """
@@ -627,6 +696,75 @@ defmodule ExForceTest do
              ],
              total_size: 1
            }
+  end
+
+  test "query_all_stream", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
+      %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
+
+      resp_body = """
+      {
+        "totalSize": 4,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-200",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account1"
+            },
+            "Name": "account1"
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account2"
+            },
+            "Name": "account2"
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+      resp_body = """
+      {
+        "totalSize": 4,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account3"
+            }
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account4"
+            }
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    got =
+      "SELECT Name FROM Account"
+      |> ExForce.query_all_stream(dummy_config(bypass))
+      |> Enum.map(fn %SObject{id: id} -> id end)
+      |> Enum.to_list()
+
+    assert got == ["account1", "account2", "account3", "account4"]
   end
 
   test "stream_query_result - zero result", %{bypass: bypass} do

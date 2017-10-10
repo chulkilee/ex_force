@@ -16,11 +16,8 @@ defmodule ExForce do
     |> ExForce.OAuth.get_token({"username", "password"}, oauth_config)
     |> ExForce.Config.from("40.0")
 
-  {:ok, rs} =
-    ExForce.query("SELECT Name FROM Account", config)
-
   names =
-    rs
+    "SELECT Name FROM Account"
     |> ExForce.query_stream(config)
     |> Enum.map(&(Map.fetch!(&1.data, "Name")))
   ```
@@ -197,6 +194,10 @@ defmodule ExForce do
     end
   end
 
+  @spec query_stream(soql, config_or_func) :: Enumerable.t()
+  def query_stream(soql, config \\ default_config()),
+    do: start_query_stream(&query/2, soql, config)
+
   @doc """
   Retrieve additional query results for the specified query ID.
 
@@ -231,6 +232,10 @@ defmodule ExForce do
     end
   end
 
+  @spec query_all_stream(soql, config_or_func) :: Enumerable.t()
+  def query_all_stream(soql, config \\ default_config()),
+    do: start_query_stream(&query_all/2, soql, config)
+
   defp build_result_set(resp = %{"records" => records, "totalSize" => total_size}) do
     result_set =
       case resp do
@@ -246,6 +251,16 @@ defmodule ExForce do
       | total_size: total_size,
         records: records |> Enum.map(&SObject.build/1)
     }
+  end
+
+  @spec start_query_stream(
+          (soql, config_or_func -> {:ok, QueryResult.t()} | any),
+          soql,
+          config_or_func
+        ) :: Enumerable.t()
+  defp start_query_stream(func, soql, config) do
+    {:ok, qr} = func.(soql, config)
+    stream_query_result(qr, config)
   end
 
   @doc """
