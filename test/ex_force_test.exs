@@ -628,4 +628,111 @@ defmodule ExForceTest do
              total_size: 1
            }
   end
+
+  test "stream_query_result - zero result", %{bypass: bypass} do
+    initial = %QueryResult{
+      records: [],
+      done: true
+    }
+
+    got =
+      initial
+      |> ExForce.stream_query_result(dummy_config(bypass))
+      |> Enum.map(fn %SObject{id: id} -> id end)
+      |> Enum.to_list()
+
+    assert got == []
+  end
+
+  test "stream_query_result - zero page", %{bypass: bypass} do
+    initial = %QueryResult{
+      records: [
+        %SObject{id: "account1"},
+        %SObject{id: "account2"}
+      ],
+      done: true
+    }
+
+    got =
+      initial
+      |> ExForce.stream_query_result(dummy_config(bypass))
+      |> Enum.map(fn %SObject{id: id} -> id end)
+      |> Enum.to_list()
+
+    assert got == ["account1", "account2"]
+  end
+
+  test "stream_query_result - two pages", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+      resp_body = """
+      {
+        "totalSize": 6,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-400",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account3"
+            }
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account4"
+            }
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-400", fn conn ->
+      resp_body = """
+      {
+        "totalSize": 6,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account5"
+            }
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account6"
+            }
+          }
+        ]
+      }
+      """
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, resp_body)
+    end)
+
+    initial = %QueryResult{
+      records: [
+        %SObject{id: "account1"},
+        %SObject{id: "account2"}
+      ],
+      done: false,
+      next_records_url: "/services/data/v40.0/query/queryid-200"
+    }
+
+    got =
+      initial
+      |> ExForce.stream_query_result(dummy_config(bypass))
+      |> Enum.map(fn %SObject{id: id} -> id end)
+      |> Enum.to_list()
+
+    assert got == ["account1", "account2", "account3", "account4", "account5", "account6"]
+  end
 end

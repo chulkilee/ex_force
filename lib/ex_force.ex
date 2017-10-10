@@ -16,10 +16,13 @@ defmodule ExForce do
     |> ExForce.OAuth.get_token({"username", "password"}, oauth_config)
     |> ExForce.Config.from("40.0")
 
-  {:ok, %ExForce.QueryResult{records: records}} =
+  {:ok, rs} =
     ExForce.query("SELECT Name FROM Account", config)
 
-  names = Enum.map(records, &(Map.fetch!(&1.data, "Name")))
+  names =
+    rs
+    |> ExForce.query_stream(config)
+    |> Enum.map(&(Map.fetch!(&1.data, "Name")))
   ```
 
   Or you can use `ExForce.Auth` to provide default config for functions taking `ExForce.Config`.
@@ -244,6 +247,27 @@ defmodule ExForce do
         records: records |> Enum.map(&SObject.build/1)
     }
   end
+
+  @doc """
+  Returns `Enumerable.t` from the `QueryResult`.
+  """
+  @spec stream_query_result(QueryResult.t(), config_or_func) :: Enumerable.t()
+  def stream_query_result(qr = %QueryResult{}, config) do
+    Stream.unfold({qr, config}, &stream_unfold/1)
+  end
+
+  defp stream_unfold({qr = %QueryResult{records: [h | tail]}, config}),
+    do: {h, {%QueryResult{qr | records: tail}, config}}
+
+  defp stream_unfold({
+         %QueryResult{records: [], done: false, next_records_url: next_records_url},
+         config
+       }) do
+    {:ok, qr = %QueryResult{records: [h | tail]}} = query_retrieve(next_records_url, config)
+    {h, {%QueryResult{qr | records: tail}, config}}
+  end
+
+  defp stream_unfold({%QueryResult{records: [], done: true}, _config}), do: nil
 
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
 
