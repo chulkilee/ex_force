@@ -1,15 +1,6 @@
 language: elixir
 elixir: 1.5
 otp_release: 20.0
-env:
-  global:
-    - SALESFORCE_ENDPOINT=http://127.0.0.1:1234
-    - SALESFORCE_CLIENT_ID=client_id_env
-    - SALESFORCE_CLIENT_SECRET=client_secret_env
-    - SALESFORCE_USERNAME=username_env
-    - SALESFORCE_PASSWORD=password_env
-    - SALESFORCE_SECURITY_TOKEN=security_token_env
-    - SALESFORCE_API_VERSION=api_version_env
 after_script:
   - MIX_ENV=test mix coveralls.travis
   - mix deps.get --only docs

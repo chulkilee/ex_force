@@ -58,9 +58,6 @@ defmodule ExForce.AuthTest do
   end
 
   test "get with load_from_system_env: success" do
-    assert System.get_env("SALESFORCE_ENDPOINT") == "http://127.0.0.1:1234",
-           "env vars are not set for test; see env.global section of .travis.yml"
-
     bypass = Bypass.open(port: 1234)
 
     Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
@@ -91,19 +88,34 @@ defmodule ExForce.AuthTest do
       |> Conn.resp(200, resp_body)
     end)
 
+    test_env = %{
+      "SALESFORCE_ENDPOINT" => "http://127.0.0.1:1234",
+      "SALESFORCE_CLIENT_ID" => "client_id_env",
+      "SALESFORCE_CLIENT_SECRET" => "client_secret_env",
+      "SALESFORCE_USERNAME" => "username_env",
+      "SALESFORCE_PASSWORD" => "password_env",
+      "SALESFORCE_SECURITY_TOKEN" => "security_token_env",
+      "SALESFORCE_API_VERSION" => "api_version_env"
+    }
+
+    System.put_env(test_env)
+
     {:ok, pid} = Auth.start_link([load_from_system_env: true], name: DummyAuth)
 
-    {:ok, got} = Auth.get(DummyAuth)
+    try do
+      {:ok, got} = Auth.get(DummyAuth)
 
-    assert got == %Config{
-             access_token: "access_token_foo",
-             api_version: "api_version_env",
-             instance_url: "https://example.com"
-           }
+      assert got == %Config{
+               access_token: "access_token_foo",
+               api_version: "api_version_env",
+               instance_url: "https://example.com"
+             }
 
-    ^got = Auth.get!(DummyAuth)
-
-    GenServer.stop(pid)
+      ^got = Auth.get!(DummyAuth)
+    after
+      test_env |> Map.keys() |> Enum.map(&System.delete_env/1)
+      GenServer.stop(pid)
+    end
   end
 
   test "get - failure", %{bypass: bypass} do
