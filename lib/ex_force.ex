@@ -124,10 +124,11 @@ defmodule ExForce do
         sobject_name,
         config \\ default_config()
       ),
-      do: do_get_sobject(
-        "/sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
-        config
-      )
+      do:
+        do_get_sobject(
+          "/sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
+          config
+        )
 
   @doc """
   Retrieves a SObject by relationship field.
@@ -274,10 +275,12 @@ defmodule ExForce do
   defp stream_unfold({qr = %QueryResult{records: [h | tail]}, config}),
     do: {h, {%QueryResult{qr | records: tail}, config}}
 
-  defp stream_unfold({
-         %QueryResult{records: [], done: false, next_records_url: next_records_url},
-         config
-       }) do
+  defp stream_unfold(
+         {
+           %QueryResult{records: [], done: false, next_records_url: next_records_url},
+           config
+         }
+       ) do
     {:ok, qr = %QueryResult{records: [h | tail]}} = query_retrieve(next_records_url, config)
     {h, {%QueryResult{qr | records: tail}, config}}
   end

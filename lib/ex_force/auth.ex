@@ -52,8 +52,9 @@ defmodule ExForce.Auth do
             username: String.t(),
             password: String.t(),
             api_version: String.t(),
-            current: Config.t()
-                     | nil
+            current:
+              Config.t()
+              | nil
           }
 
     defstruct [:oauth_config, :username, :password, :api_version, :current]

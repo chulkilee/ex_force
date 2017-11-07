@@ -13,10 +13,12 @@ defmodule ExForce.OAuth.Response do
           issued_at: DateTime.t(),
           signature: String.t(),
           access_token: String.t(),
-          refresh_token: refresh_token
-                         | nil,
-          scope: String.t()
-                 | nil
+          refresh_token:
+            refresh_token
+            | nil,
+          scope:
+            String.t()
+            | nil
         }
 
   defstruct [

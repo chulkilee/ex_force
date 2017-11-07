@@ -14,14 +14,15 @@ defmodule ExForce.Config do
   defstruct [:access_token, :api_version, :instance_url]
 
   def from({:ok, %Response{access_token: access_token, instance_url: instance_url}}, api_version),
-    do: {
-      :ok,
-      %__MODULE__{
-        access_token: access_token,
-        instance_url: instance_url,
-        api_version: api_version
+    do:
+      {
+        :ok,
+        %__MODULE__{
+          access_token: access_token,
+          instance_url: instance_url,
+          api_version: api_version
+        }
       }
-    }
 
   def from({:error, error}, _api_version), do: {:error, error}
 end
