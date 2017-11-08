@@ -170,6 +170,22 @@ defmodule ExForce do
   end
 
   @doc """
+  Creates a SObject.
+
+  See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
+  """
+  @spec create_sobject(sobject_name, map, config_or_func) :: :ok | {:error, any}
+  def create_sobject(name, attrs, config \\ default_config()) do
+    case request_post("/sobjects/#{name}/", Poison.encode!(attrs), config) do
+      {201, %{"id" => id, "success" => "true"}} ->
+        {:ok, id}
+
+      {_, raw} ->
+        {:error, raw}
+    end
+  end
+
+  @doc """
   Deletes a SObject.
 
   [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
@@ -288,6 +304,8 @@ defmodule ExForce do
   defp stream_unfold({%QueryResult{records: [], done: true}, _config}), do: nil
 
   defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
+
+  defp request_post(path, body, config), do: request(:post, path, [], body, config)
 
   defp request_patch(path, body, config), do: request(:patch, path, [], body, config)
 
