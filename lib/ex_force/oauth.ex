@@ -3,8 +3,9 @@ defmodule ExForce.OAuth do
   Handles OAuth2
   """
 
-  alias ExForce.OAuth.{Config, Response}
-  alias ExForce.Client
+  alias ExForce.OAuth.Config
+  alias ExForce.OAuth.Response, as: OAuthResponse
+  alias ExForce.{Client, Response}
 
   @type username :: String.t()
   @type password :: String.t()
@@ -50,7 +51,7 @@ defmodule ExForce.OAuth do
   def get_token(grant_type, args, config)
 
   @spec get_token(:password, {username, password}, Config.t()) ::
-          {:ok, Response.t()} | {:error, :invalid_signature | term}
+          {:ok, OAuthResponse.t()} | {:error, :invalid_signature | term}
   def get_token(:password, {username, password}, config = %Config{}) do
     config
     |> token_form()
@@ -75,8 +76,8 @@ defmodule ExForce.OAuth do
   def get_token(:authorization_code, code, config),
     do: get_token(:authorization_code, {code, []}, config)
 
-  @spec get_token(:refresh_token, Response.refresh_token(), Config.t()) ::
-          {:ok, Response.t()} | {:error, :invalid_signature | term}
+  @spec get_token(:refresh_token, OAuthResponse.refresh_token(), Config.t()) ::
+          {:ok, OAuthResponse.t()} | {:error, :invalid_signature | term}
   def get_token(:refresh_token, refresh_token, config = %Config{}) do
     config
     |> token_form()
@@ -90,19 +91,20 @@ defmodule ExForce.OAuth do
 
   defp do_get_token(form, %Config{endpoint: endpoint, client_secret: client_secret}) do
     case Client.request!(:post, endpoint <> "/services/oauth2/token", {:form, form}) do
-      {
-        200,
-        map = %{
-          "token_type" => token_type,
-          "instance_url" => instance_url,
-          "id" => id,
-          "signature" => signature,
-          "issued_at" => issued_at,
-          "access_token" => access_token
-        }
+      %Response{
+        status_code: 200,
+        body:
+          map = %{
+            "token_type" => token_type,
+            "instance_url" => instance_url,
+            "id" => id,
+            "signature" => signature,
+            "issued_at" => issued_at,
+            "access_token" => access_token
+          }
       } ->
         verify_signature(
-          %Response{
+          %OAuthResponse{
             token_type: token_type,
             instance_url: instance_url,
             id: id,
@@ -115,13 +117,13 @@ defmodule ExForce.OAuth do
           client_secret
         )
 
-      {400, error} ->
+      %Response{status_code: 400, body: error} ->
         {:error, error}
     end
   end
 
   defp verify_signature(
-         resp = %Response{id: id, issued_at: issued_at, signature: signature},
+         resp = %OAuthResponse{id: id, issued_at: issued_at, signature: signature},
          client_secret
        ) do
     issued_at_raw =

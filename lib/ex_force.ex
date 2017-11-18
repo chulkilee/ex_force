@@ -31,7 +31,7 @@ defmodule ExForce do
   ```
   """
 
-  alias ExForce.{Auth, Client, Config, QueryResult, SObject}
+  alias ExForce.{Auth, Client, Config, QueryResult, Response, SObject}
 
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
@@ -54,8 +54,8 @@ defmodule ExForce do
   @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
   def versions(instance_url) do
     case Client.request!(:get, instance_url <> "/services/data") do
-      {200, raw} -> {:ok, raw}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, raw}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -67,8 +67,8 @@ defmodule ExForce do
   @spec resources(String.t(), config_or_func) :: {:ok, map} | {:error, any}
   def resources(version, config \\ default_config()) do
     case request_get("/services/data/v#{version}", config) do
-      {200, raw} -> {:ok, raw}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, raw}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -80,8 +80,8 @@ defmodule ExForce do
   @spec describe_sobject(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
   def describe_sobject(name, config \\ default_config()) do
     case request_get("/sobjects/#{name}/describe", config) do
-      {200, raw} -> {:ok, raw}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, raw}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -93,10 +93,10 @@ defmodule ExForce do
   @spec basic_info(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
   def basic_info(name, config \\ default_config()) do
     case request_get("/sobjects/#{name}", config) do
-      {200, raw = %{"recentItems" => recent_items}} ->
+      %Response{status_code: 200, body: raw = %{"recentItems" => recent_items}} ->
         {:ok, Map.put(raw, "recentItems", Enum.map(recent_items, &SObject.build/1))}
 
-      {_, raw} ->
+      %Response{body: raw} ->
         {:error, raw}
     end
   end
@@ -148,8 +148,8 @@ defmodule ExForce do
 
   defp do_get_sobject(path, fields \\ [], config) do
     case request_get(path, build_fields_query(fields), config) do
-      {200, raw} -> {:ok, SObject.build(raw)}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, SObject.build(raw)}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -164,8 +164,8 @@ defmodule ExForce do
   @spec update_sobject(sobject_id, sobject_name, map, config_or_func) :: :ok | {:error, any}
   def update_sobject(id, name, attrs, config \\ default_config()) do
     case request_patch("/sobjects/#{name}/#{id}", Poison.encode!(attrs), config) do
-      {204, ""} -> :ok
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 204, body: ""} -> :ok
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -177,11 +177,8 @@ defmodule ExForce do
   @spec create_sobject(sobject_name, map, config_or_func) :: :ok | {:error, any}
   def create_sobject(name, attrs, config \\ default_config()) do
     case request_post("/sobjects/#{name}/", Poison.encode!(attrs), config) do
-      {201, %{"id" => id, "success" => true}} ->
-        {:ok, id}
-
-      {_, raw} ->
-        {:error, raw}
+      %Response{status_code: 201, body: %{"id" => id, "success" => true}} -> {:ok, id}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -193,8 +190,8 @@ defmodule ExForce do
   @spec delete_sobject(sobject_id, sobject_name, config_or_func) :: :ok | {:error, any}
   def delete_sobject(id, name, config \\ default_config()) do
     case request_delete("/sobjects/#{name}/#{id}", config) do
-      {204, ""} -> :ok
-      {404, errors} -> {:error, errors}
+      %Response{status_code: 204, body: ""} -> :ok
+      %Response{status_code: 404, body: errors} -> {:error, errors}
     end
   end
 
@@ -206,8 +203,8 @@ defmodule ExForce do
   @spec query(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
   def query(soql, config \\ default_config()) do
     case request_get("/query", [q: soql], config) do
-      {200, raw} -> {:ok, build_result_set(raw)}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, build_result_set(raw)}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -231,8 +228,8 @@ defmodule ExForce do
       end
 
     case request_get(path, config) do
-      {200, raw} -> {:ok, build_result_set(raw)}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, build_result_set(raw)}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
@@ -244,8 +241,8 @@ defmodule ExForce do
   @spec query_all(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
   def query_all(soql, config \\ default_config()) do
     case request_get("/queryAll", [q: soql], config) do
-      {200, raw} -> {:ok, build_result_set(raw)}
-      {_, raw} -> {:error, raw}
+      %Response{status_code: 200, body: raw} -> {:ok, build_result_set(raw)}
+      %Response{body: raw} -> {:error, raw}
     end
   end
 
