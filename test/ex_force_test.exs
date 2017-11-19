@@ -296,7 +296,7 @@ defmodule ExForceTest do
       {
         "id": "001D000000IqhSLIAZ",
         "errors": [],
-        "success": "true",
+        "success": true,
         "warnings": []
       }
       """
