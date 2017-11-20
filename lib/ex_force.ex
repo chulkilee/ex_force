@@ -177,7 +177,7 @@ defmodule ExForce do
   @spec create_sobject(sobject_name, map, config_or_func) :: :ok | {:error, any}
   def create_sobject(name, attrs, config \\ default_config()) do
     case request_post("/sobjects/#{name}/", Poison.encode!(attrs), config) do
-      {201, %{"id" => id, "success" => "true"}} ->
+      {201, %{"id" => id, "success" => true}} ->
         {:ok, id}
 
       {_, raw} ->
