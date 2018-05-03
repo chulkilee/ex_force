@@ -28,15 +28,14 @@ defmodule ExForce.Mixfile do
 
   def application do
     [
-      extra_applications: [:logger],
-      mod: {ExForce.Application, []}
+      extra_applications: [:logger]
     ]
   end
 
   defp deps do
     [
-      {:httpoison, "~> 0.13"},
-      {:poison, "~> 3.1"},
+      {:tesla, "~> 1.0.0-beta.1"},
+      {:jason, "~> 1.0"},
       {:bypass, "~> 0.8", only: :test},
       {:credo, "~> 0.9", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},

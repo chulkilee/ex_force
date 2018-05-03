@@ -1,4 +1,4 @@
-defmodule ExForce.OAuth.Response do
+defmodule ExForce.OAuthResponse do
   @moduledoc """
   Represents the result of a successful OAuth response.
   """

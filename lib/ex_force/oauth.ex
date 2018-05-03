@@ -1,11 +1,18 @@
 defmodule ExForce.OAuth do
   @moduledoc """
   Handles OAuth2
+
+  ## Grant Types
+
+  - `authorization_code`: [Understanding the Web Server OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_web_server_oauth_flow.htm)
+  - `password`: [Understanding the Username-Password OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_username_password_oauth_flow.htm)
+  - `token`: [Understanding the User-Agent OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_user_agent_oauth_flow.htm)
+  - `refresh_token`: [Understanding the OAuth Refresh Token Process](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_refresh_token_oauth.htm)
   """
 
-  alias ExForce.OAuth.Config
-  alias ExForce.OAuth.Response, as: OAuthResponse
-  alias ExForce.{Client, Response}
+  alias ExForce.OAuthResponse
+
+  import ExForce.Client, only: [request: 2]
 
   @type username :: String.t()
   @type password :: String.t()
@@ -13,96 +20,124 @@ defmodule ExForce.OAuth do
   @type redirect_uri :: String.t()
 
   @doc """
-  Returns the authorize url based on the configuration.
+  Returns client for OAuth functions
 
-  - `:authorization_code`: [Understanding the Web Server OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_web_server_oauth_flow.htm)
-  - `:token`: [Understanding the User-Agent OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_user_agent_oauth_flow.htm)
+  ### Options
+
+  - `:user_agent`
   """
-  def authorize_url(grant_type, args, config)
-
-  @spec authorize_url(:authorization_code, keyword(), Config.t()) :: String.t()
-  def authorize_url(:authorization_code, params, %Config{endpoint: endpoint, client_id: client_id}) do
-    query_string =
-      [response_type: "code", client_id: client_id]
-      |> Keyword.merge(params)
-      |> URI.encode_query()
-
-    endpoint <> "/services/oauth2/authorize?" <> query_string
+  def build_client(url, opts \\ [user_agent: "ex_force"]) do
+    Tesla.build_client([
+      {Tesla.Middleware.BaseUrl, url},
+      {Tesla.Middleware.Compression, format: "gzip"},
+      Tesla.Middleware.FormUrlencoded,
+      {Tesla.Middleware.DecodeJson, engine: Jason},
+      {Tesla.Middleware.Headers, build_headers(opts)}
+    ])
   end
 
-  @spec authorize_url(:token, keyword(), Config.t()) :: String.t()
-  def authorize_url(:token, params, %Config{endpoint: endpoint, client_id: client_id}) do
-    query_string =
-      [response_type: "token", client_id: client_id]
-      |> Keyword.merge(params)
-      |> URI.encode_query()
-
-    endpoint <> "/services/oauth2/authorize?" <> query_string
+  defp build_headers(opts) do
+    case Keyword.get(opts, :user_agent) do
+      nil -> []
+      val -> [{"user-agent", val}]
+    end
   end
 
   @doc """
-  Fetches an `ExForce.OAuth.Response` struct by making a request to the token endpoint.
+  Returns the authorize url based on the configuration.
 
-  - `:password`: [Understanding the Username-Password OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_username_password_oauth_flow.htm)
-  - `:authorization_code`: [Understanding the Web Server OAuth Authentication Flow](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_web_server_oauth_flow.htm)
-  - `:refresh`: [Understanding the OAuth Refresh Token Process](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_refresh_token_oauth.htm)
+  ### `authorization_code`
+
+  ```elixir
+  ExForce.OAuth.authorize_url(
+    "https://login.salesforce.com",
+    response_type: "code",
+    client_id: "client-id",
+    redirect_uri: "https://example.com/callback"
+  )
+  ```
+
+  ### `token`
+
+  ```elixir
+  ExForce.OAuth.authorize_url(
+    "https://login.salesforce.com",
+    response_type: "token",
+    client_id: "client-id",
+    redirect_uri: "https://example.com/callback"
+  )
+  ```
   """
 
-  def get_token(grant_type, args, config)
+  @spec authorize_url(String.t(), Enum.t()) :: String.t()
+  def authorize_url(endpoint, enum) do
+    endpoint <> "/services/oauth2/authorize?" <> URI.encode_query(enum)
+  end
 
-  @spec get_token(:password, {username, password}, Config.t()) ::
+  @doc """
+  Fetches an `ExForce.OAuthResponse` struct by making a request to the token endpoint.
+
+  ### `authorization_code`
+
+  ```elixir
+  ExForce.OAuth.get_token(
+    "https://login.salesforce.com",
+    grant_type: "authorization_code",
+    code: "code",
+    redirect_uri: "https://example.com/callback",
+    client_id: "client_id",
+    client_secret: "client_secret"
+  )
+  ```
+
+  ### `password`
+
+  ```elixir
+  ExForce.OAuth.get_token(
+    "https://login.salesforce.com",
+    grant_type: "password",
+    client_id: "client_id",
+    client_secret: "client_secret",
+    username: "username",
+    password: "password"
+  )
+  ```
+
+  ### `refresh_token`
+
+    ```elixir
+  ExForce.OAuth.get_token(
+    "https://login.salesforce.com",
+    grant_type: "refresh_token",
+    client_id: "client_id",
+    client_secret: "client_secret",
+    refresh_token: "refresh_token"
+  )
+  ```
+  """
+
+  @spec get_token(Client.t() | String.t(), list) ::
           {:ok, OAuthResponse.t()} | {:error, :invalid_signature | term}
-  def get_token(:password, {username, password}, config = %Config{}) do
-    config
-    |> token_form()
-    |> Keyword.put(:grant_type, "password")
-    |> Keyword.put(:username, username)
-    |> Keyword.put(:password, password)
-    |> do_get_token(config)
-  end
 
-  @spec get_token(:authorization_code, String.t() | {String.t(), keyword}, Config.t()) ::
-          {:ok, Response.t()} | {:error, :invalid_signature | term}
+  def get_token(url, payload) when is_binary(url), do: url |> build_client() |> get_token(payload)
 
-  def get_token(:authorization_code, {code, params}, config = %Config{}) do
-    config
-    |> token_form()
-    |> Keyword.put(:grant_type, "authorization_code")
-    |> Keyword.put(:code, code)
-    |> Keyword.merge(params)
-    |> do_get_token(config)
-  end
+  def get_token(client, payload) do
+    client_secret = Keyword.fetch!(payload, :client_secret)
 
-  def get_token(:authorization_code, code, config),
-    do: get_token(:authorization_code, {code, []}, config)
-
-  @spec get_token(:refresh_token, OAuthResponse.refresh_token(), Config.t()) ::
-          {:ok, OAuthResponse.t()} | {:error, :invalid_signature | term}
-  def get_token(:refresh_token, refresh_token, config = %Config{}) do
-    config
-    |> token_form()
-    |> Keyword.put(:grant_type, "refresh_token")
-    |> Keyword.put(:refresh_token, refresh_token)
-    |> do_get_token(config)
-  end
-
-  defp token_form(%Config{client_id: client_id, client_secret: client_secret}),
-    do: [client_id: client_id, client_secret: client_secret]
-
-  defp do_get_token(form, %Config{endpoint: endpoint, client_secret: client_secret}) do
-    case Client.request!(:post, endpoint <> "/services/oauth2/token", {:form, form}) do
-      %Response{
-        status_code: 200,
-        body:
-          map = %{
-            "token_type" => token_type,
-            "instance_url" => instance_url,
-            "id" => id,
-            "signature" => signature,
-            "issued_at" => issued_at,
-            "access_token" => access_token
-          }
-      } ->
+    case request(client, method: :post, url: "/services/oauth2/token", body: payload) do
+      {:ok,
+       %Tesla.Env{
+         status: 200,
+         body:
+           map = %{
+             "token_type" => token_type,
+             "instance_url" => instance_url,
+             "id" => id,
+             "signature" => signature,
+             "issued_at" => issued_at,
+             "access_token" => access_token
+           }
+       }} ->
         verify_signature(
           %OAuthResponse{
             token_type: token_type,
@@ -117,8 +152,11 @@ defmodule ExForce.OAuth do
           client_secret
         )
 
-      %Response{status_code: 400, body: error} ->
-        {:error, error}
+      {:ok, %Tesla.Env{body: body}} ->
+        {:error, body}
+
+      {:error, _} = other ->
+        other
     end
   end
 

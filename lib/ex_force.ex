@@ -5,46 +5,36 @@ defmodule ExForce do
   ## Usage
 
   ```elixir
-  oauth_config = %ExForce.OAuth.Config{
-    endpoint: "https://login.salesforce.com",
-    client_id: "...",
-    client_secret: "..."
-  }
+  {:ok, %{access_token: access_token}} = ExForce.OAuth.get_token(
+    "https://login.salesforce.com",
+    grant_type: "password",
+    client_id: "client_id",
+    client_secret: "client_secret",
+    username: "username",
+    password: "password"
+  )
 
-  {:ok, config} =
-    :password
-    |> ExForce.OAuth.get_token({"username", "password"}, oauth_config)
-    |> ExForce.Config.from("40.0")
+  client = ExForce.build_client("
+    https://login.salesforce.com",
+    access_token: access_token,
+    api_version: "40.0"
+  )
 
   names =
-    "SELECT Name FROM Account"
-    |> ExForce.query_stream(config)
+    ExForce.query_stream(client, "SELECT Name FROM Account")
     |> Enum.map(&(Map.fetch!(&1.data, "Name")))
-  ```
-
-  Or you can use `ExForce.Auth` to provide default config for functions taking `ExForce.Config`.
-  See `ExForce.Auth` for configuration details.
-
-  ```elixir
-  {:ok, %ExForce.QueryResult{records: [%ExForce.SObject{data: %{"counts" => counts }}]}} =
-    ExForce.query("SELECT COUNT(Id) counts FROM Account")
   ```
   """
 
-  alias ExForce.{Auth, Client, Config, QueryResult, Response, SObject}
+  alias ExForce.{QueryResult, SObject}
+
+  import ExForce.Client, only: [request: 2]
 
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
   @type field_name :: String.t()
   @type soql :: String.t()
   @type query_id :: String.t()
-  @type config_or_func :: Config.t() | (() -> Config.t())
-
-  @doc """
-  Get default config from `ExForce.Auth`
-  """
-  @spec default_config() :: Config.t() | no_return
-  def default_config, do: Auth.get!()
 
   @doc """
   Lists available REST API versions at an instance.
@@ -53,9 +43,10 @@ defmodule ExForce do
   """
   @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
   def versions(instance_url) do
-    case Client.request!(:get, instance_url <> "/services/data") do
-      %Response{status_code: 200, body: raw} -> {:ok, raw}
-      %Response{body: raw} -> {:error, raw}
+    case instance_url |> build_client() |> request(method: :get, url: "/services/data") do
+      {:ok, %Tesla.Env{status: 200, body: body}} when is_list(body) -> {:ok, body}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -64,12 +55,38 @@ defmodule ExForce do
 
   See [Resources by Version](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_discoveryresource.htm)
   """
-  @spec resources(String.t(), config_or_func) :: {:ok, map} | {:error, any}
-  def resources(version, config \\ default_config()) do
-    case request_get("/services/data/v#{version}", config) do
-      %Response{status_code: 200, body: raw} -> {:ok, raw}
-      %Response{body: raw} -> {:error, raw}
+  @spec resources(Client.t(), String.t()) :: {:ok, map} | {:error, any}
+  def resources(client, version) do
+    case request(client, method: :get, url: "/services/data/v#{version}") do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
+  end
+
+  @doc """
+
+  Options
+
+  - `:user_agent`: set `user-agent` header; default: `ex_force`
+  """
+  def build_client(url, opts \\ [user_agent: "ex_force"]) do
+    Tesla.build_client([
+      {ExForce.TeslaMiddleware, {url, Keyword.get(opts, :api_version)}},
+      {Tesla.Middleware.Compression, format: "gzip"},
+      {Tesla.Middleware.JSON, engine: Jason},
+      {Tesla.Middleware.Headers, build_headers(opts)}
+    ])
+  end
+
+  defp build_headers(opts) do
+    Enum.reduce(opts, [], fn {key, val}, acc ->
+      case key do
+        :user_agent -> [{"user-agent", val} | acc]
+        :access_token -> [{"authorization", "Bearer " <> val} | acc]
+        _ -> acc
+      end
+    end)
   end
 
   @doc """
@@ -77,11 +94,12 @@ defmodule ExForce do
 
   See [SObject Describe](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_describe.htm)
   """
-  @spec describe_sobject(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
-  def describe_sobject(name, config \\ default_config()) do
-    case request_get("/sobjects/#{name}/describe", config) do
-      %Response{status_code: 200, body: raw} -> {:ok, raw}
-      %Response{body: raw} -> {:error, raw}
+  @spec describe_sobject(Client.t(), sobject_name) :: {:ok, map} | {:error, any}
+  def describe_sobject(client, name) do
+    case request(client, method: :get, url: "sobjects/#{name}/describe") do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -90,14 +108,17 @@ defmodule ExForce do
 
   See [SObject Basic Information](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
-  @spec basic_info(sobject_name, config_or_func) :: {:ok, map} | {:error, any}
-  def basic_info(name, config \\ default_config()) do
-    case request_get("/sobjects/#{name}", config) do
-      %Response{status_code: 200, body: raw = %{"recentItems" => recent_items}} ->
-        {:ok, Map.put(raw, "recentItems", Enum.map(recent_items, &SObject.build/1))}
+  @spec basic_info(Client.t(), sobject_name) :: {:ok, map} | {:error, any}
+  def basic_info(client, name) do
+    case request(client, method: :get, url: "sobjects/#{name}") do
+      {:ok, %Tesla.Env{status: 200, body: body = %{"recentItems" => recent_items}}} ->
+        {:ok, Map.put(body, "recentItems", Enum.map(recent_items, &SObject.build/1))}
 
-      %Response{body: raw} ->
-        {:error, raw}
+      {:ok, %Tesla.Env{body: body}} ->
+        {:error, body}
+
+      {:error, _} = other ->
+        other
     end
   end
 
@@ -106,50 +127,48 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
-  @spec get_sobject(sobject_id, sobject_name, list, config_or_func) ::
+  @spec get_sobject(Client.t(), sobject_id, sobject_name, list) ::
           {:ok, SObject.t()} | {:error, any}
-  def get_sobject(id, name, fields, config \\ default_config()),
-    do: do_get_sobject("/sobjects/#{name}/#{id}", fields, config)
+  def get_sobject(client, id, name, fields),
+    do: do_get_sobject(client, "sobjects/#{name}/#{id}", fields)
 
   @doc """
   Retrieves a SObject based on the value of a specified extneral ID field.
 
   See [SObject Rows by External ID](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_upsert.htm)
   """
-  @spec get_sobject_by_external_id(any, field_name, sobject_name, config_or_func) ::
+  @spec get_sobject_by_external_id(Client.t(), any, field_name, sobject_name) ::
           {:ok, SObject.t()} | {:error, any}
-  def get_sobject_by_external_id(
-        field_value,
-        field_name,
-        sobject_name,
-        config \\ default_config()
-      ),
-      do:
-        do_get_sobject(
-          "/sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
-          config
-        )
+  def get_sobject_by_external_id(client, field_value, field_name, sobject_name),
+    do:
+      do_get_sobject(client, "sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}")
 
   @doc """
   Retrieves a SObject by relationship field.
 
   See [SObject Relationships](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_relationships.htm)
   """
-  @spec get_sobject_by_relationship(sobject_id, sobject_name, field_name, config_or_func) ::
-          {:ok, SObject.t()} | {:error, any}
+  @spec get_sobject_by_relationship(
+          Client.t(),
+          sobject_id,
+          sobject_name,
+          field_name,
+          list(field_name)
+        ) :: {:ok, SObject.t()} | {:error, any}
   def get_sobject_by_relationship(
+        client,
         id,
         sobject_name,
         field_name,
-        fields,
-        config \\ default_config()
+        fields
       ),
-      do: do_get_sobject("/sobjects/#{sobject_name}/#{id}/#{field_name}", fields, config)
+      do: do_get_sobject(client, "sobjects/#{sobject_name}/#{id}/#{field_name}", fields)
 
-  defp do_get_sobject(path, fields \\ [], config) do
-    case request_get(path, build_fields_query(fields), config) do
-      %Response{status_code: 200, body: raw} -> {:ok, SObject.build(raw)}
-      %Response{body: raw} -> {:error, raw}
+  defp do_get_sobject(client, path, fields \\ []) do
+    case request(client, method: :get, url: path, query: build_fields_query(fields)) do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, SObject.build(body)}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -161,11 +180,12 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
-  @spec update_sobject(sobject_id, sobject_name, map, config_or_func) :: :ok | {:error, any}
-  def update_sobject(id, name, attrs, config \\ default_config()) do
-    case request_patch("/sobjects/#{name}/#{id}", Poison.encode!(attrs), config) do
-      %Response{status_code: 204, body: ""} -> :ok
-      %Response{body: raw} -> {:error, raw}
+  @spec update_sobject(Client.t(), sobject_id, sobject_name, map) :: :ok | {:error, any}
+  def update_sobject(client, id, name, attrs) do
+    case request(client, method: :patch, url: "sobjects/#{name}/#{id}", body: attrs) do
+      {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -174,11 +194,12 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
-  @spec create_sobject(sobject_name, map, config_or_func) :: :ok | {:error, any}
-  def create_sobject(name, attrs, config \\ default_config()) do
-    case request_post("/sobjects/#{name}/", Poison.encode!(attrs), config) do
-      %Response{status_code: 201, body: %{"id" => id, "success" => true}} -> {:ok, id}
-      %Response{body: raw} -> {:error, raw}
+  @spec create_sobject(Client.t(), sobject_name, map) :: :ok | {:error, any}
+  def create_sobject(client, name, attrs) do
+    case request(client, method: :post, url: "sobjects/#{name}/", body: attrs) do
+      {:ok, %Tesla.Env{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -187,11 +208,12 @@ defmodule ExForce do
 
   [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
-  @spec delete_sobject(sobject_id, sobject_name, config_or_func) :: :ok | {:error, any}
-  def delete_sobject(id, name, config \\ default_config()) do
-    case request_delete("/sobjects/#{name}/#{id}", config) do
-      %Response{status_code: 204, body: ""} -> :ok
-      %Response{status_code: 404, body: errors} -> {:error, errors}
+  @spec delete_sobject(Client.t(), sobject_id, sobject_name) :: :ok | {:error, any}
+  def delete_sobject(client, id, name) do
+    case request(client, method: :delete, url: "sobjects/#{name}/#{id}") do
+      {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
+      {:ok, %Tesla.Env{status: 404, body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -200,36 +222,37 @@ defmodule ExForce do
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
-  @spec query(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
-  def query(soql, config \\ default_config()) do
-    case request_get("/query", [q: soql], config) do
-      %Response{status_code: 200, body: raw} -> {:ok, build_result_set(raw)}
-      %Response{body: raw} -> {:error, raw}
+  @spec query(Client.t(), soql) :: {:ok, QueryResult.t()} | {:error, any}
+  def query(client, soql) do
+    case request(client, method: :get, url: "query", query: [q: soql]) do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
-  @spec query_stream(soql, config_or_func) :: Enumerable.t()
-  def query_stream(soql, config \\ default_config()),
-    do: start_query_stream(&query/2, soql, config)
+  @spec query_stream(Client.t(), soql) :: Enumerable.t()
+  def query_stream(client, soql), do: start_query_stream(client, &query/2, soql)
 
   @doc """
   Retrieve additional query results for the specified query ID.
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
-  @spec query_retrieve(query_id | String.t(), config_or_func) ::
+  @spec query_retrieve(Client.t(), query_id | String.t()) ::
           {:ok, QueryResult.t()} | {:error, any}
-  def query_retrieve(query_id_or_url, config \\ default_config()) do
+  def query_retrieve(client, query_id_or_url) do
     path =
       if full_path?(query_id_or_url) do
         query_id_or_url
       else
-        "/query/#{query_id_or_url}"
+        "query/#{query_id_or_url}"
       end
 
-    case request_get(path, config) do
-      %Response{status_code: 200, body: raw} -> {:ok, build_result_set(raw)}
-      %Response{body: raw} -> {:error, raw}
+    case request(client, method: :get, url: path) do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
@@ -238,17 +261,17 @@ defmodule ExForce do
 
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
   """
-  @spec query_all(soql, config_or_func) :: {:ok, QueryResult.t()} | {:error, any}
-  def query_all(soql, config \\ default_config()) do
-    case request_get("/queryAll", [q: soql], config) do
-      %Response{status_code: 200, body: raw} -> {:ok, build_result_set(raw)}
-      %Response{body: raw} -> {:error, raw}
+  @spec query_all(Client.t(), soql) :: {:ok, QueryResult.t()} | {:error, any}
+  def query_all(client, soql) do
+    case request(client, method: :get, url: "queryAll", query: [q: soql]) do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
     end
   end
 
-  @spec query_all_stream(soql, config_or_func) :: Enumerable.t()
-  def query_all_stream(soql, config \\ default_config()),
-    do: start_query_stream(&query_all/2, soql, config)
+  @spec query_all_stream(Client.t(), soql) :: Enumerable.t()
+  def query_all_stream(client, soql), do: start_query_stream(client, &query_all/2, soql)
 
   defp build_result_set(resp = %{"records" => records, "totalSize" => total_size}) do
     result_set =
@@ -268,67 +291,35 @@ defmodule ExForce do
   end
 
   @spec start_query_stream(
-          (soql, config_or_func -> {:ok, QueryResult.t()} | any),
-          soql,
-          config_or_func
+          Client.t(),
+          (Client.t(), soql -> {:ok, QueryResult.t()} | any),
+          soql
         ) :: Enumerable.t()
-  defp start_query_stream(func, soql, config) do
-    {:ok, qr} = func.(soql, config)
-    stream_query_result(qr, config)
+  defp start_query_stream(client, func, soql) do
+    {:ok, qr} = func.(client, soql)
+    stream_query_result(client, qr)
   end
 
   @doc """
   Returns `Enumerable.t` from the `QueryResult`.
   """
-  @spec stream_query_result(QueryResult.t(), config_or_func) :: Enumerable.t()
-  def stream_query_result(qr = %QueryResult{}, config) do
-    Stream.unfold({qr, config}, &stream_unfold/1)
+  @spec stream_query_result(Client.t(), QueryResult.t()) :: Enumerable.t()
+  def stream_query_result(client, qr = %QueryResult{}) do
+    Stream.unfold({client, qr}, &stream_unfold/1)
   end
 
-  defp stream_unfold({qr = %QueryResult{records: [h | tail]}, config}),
-    do: {h, {%QueryResult{qr | records: tail}, config}}
+  defp stream_unfold({client, qr = %QueryResult{records: [h | tail]}}),
+    do: {h, {client, %QueryResult{qr | records: tail}}}
 
-  defp stream_unfold(
-         {
-           %QueryResult{records: [], done: false, next_records_url: next_records_url},
-           config
-         }
-       ) do
-    {:ok, qr = %QueryResult{records: [h | tail]}} = query_retrieve(next_records_url, config)
-    {h, {%QueryResult{qr | records: tail}, config}}
+  defp stream_unfold({
+         client,
+         %QueryResult{records: [], done: false, next_records_url: next_records_url}
+       }) do
+    {:ok, qr = %QueryResult{records: [h | tail]}} = query_retrieve(client, next_records_url)
+    {h, {client, %QueryResult{qr | records: tail}}}
   end
 
-  defp stream_unfold({%QueryResult{records: [], done: true}, _config}), do: nil
-
-  defp request_get(path, query \\ [], config), do: request(:get, path, query, "", config)
-
-  defp request_post(path, body, config), do: request(:post, path, [], body, config)
-
-  defp request_patch(path, body, config), do: request(:patch, path, [], body, config)
-
-  defp request_delete(path, query \\ [], config), do: request(:delete, path, query, "", config)
-
-  defp request(method, path, query, body, config)
-
-  defp request(method, path, query, body, config) when is_function(config, 0),
-    do: request(method, path, query, body, config.())
-
-  defp request(method, path, query, body, config = %Config{access_token: access_token}) do
-    Client.request!(method, build_url(path, query, config), body, [
-      {"authorization", "Bearer " <> access_token}
-    ])
-  end
+  defp stream_unfold({_client, %QueryResult{records: [], done: true}}), do: nil
 
   defp full_path?(path), do: String.starts_with?(path, "/services/data/v")
-
-  defp build_url(path, [], %Config{instance_url: instance_url, api_version: api_version}) do
-    if full_path?(path) do
-      instance_url <> path
-    else
-      instance_url <> "/services/data/v" <> api_version <> path
-    end
-  end
-
-  defp build_url(path, query, config = %Config{}),
-    do: build_url(path <> "?" <> URI.encode_query(query), [], config)
 end

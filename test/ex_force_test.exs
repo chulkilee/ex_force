@@ -2,18 +2,22 @@ defmodule ExForceTest do
   use ExUnit.Case, async: true
   doctest(ExForce)
 
-  alias ExForce.{Config, QueryResult, SObject}
+  alias ExForce.{QueryResult, SObject}
   alias Plug.Conn
 
   setup do
-    bypass = Bypass.open()
-    {:ok, bypass: bypass}
+    with bypass <- Bypass.open(),
+         client <-
+           ExForce.build_client(
+             bypass_url(bypass),
+             access_token: "foo",
+             api_version: "40.0"
+           ) do
+      {:ok, bypass: bypass, client: client}
+    end
   end
 
-  defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
-
-  defp dummy_config(bypass),
-    do: %Config{instance_url: bypass_url(bypass), access_token: "foo", api_version: "40.0"}
+  def bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
   test "versions", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/services/data", fn conn ->
@@ -37,7 +41,7 @@ defmodule ExForceTest do
            ]
   end
 
-  test "resources", %{bypass: bypass} do
+  test "resources", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v38.0", fn conn ->
       resp_body = """
       {
@@ -51,7 +55,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.resources("38.0", dummy_config(bypass))
+    {:ok, got} = ExForce.resources(client, "38.0")
 
     assert got == %{
              "eclair" => "/services/data/v38.0/eclair",
@@ -59,30 +63,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "resources with config as function", %{bypass: bypass} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v38.0", fn conn ->
-      resp_body = """
-      {
-        "tooling": "/services/data/v38.0/tooling",
-        "eclair": "/services/data/v38.0/eclair"
-      }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
-    end)
-
-    f = fn -> dummy_config(bypass) end
-    {:ok, got} = ExForce.resources("38.0", f)
-
-    assert got == %{
-             "eclair" => "/services/data/v38.0/eclair",
-             "tooling" => "/services/data/v38.0/tooling"
-           }
-  end
-
-  test "describe_sobject", %{bypass: bypass} do
+  test "describe_sobject", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/describe", fn conn ->
       resp_body = """
       {
@@ -96,11 +77,11 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.describe_sobject("Account", dummy_config(bypass))
+    {:ok, got} = ExForce.describe_sobject(client, "Account")
     assert got == %{"actionOverrides" => [], "activateable" => false}
   end
 
-  test "basic_info", %{bypass: bypass} do
+  test "basic_info", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account", fn conn ->
       resp_body = """
       {
@@ -125,7 +106,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.basic_info("Account", dummy_config(bypass))
+    {:ok, got} = ExForce.basic_info(client, "Account")
 
     assert got == %{
              "objectDescribe" => %{"label" => "Account"},
@@ -135,7 +116,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "get_sobject", %{bypass: bypass} do
+  test "get_sobject", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       resp_body = """
       {
@@ -153,11 +134,11 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.get_sobject("foo", "Account", [], dummy_config(bypass))
+    {:ok, got} = ExForce.get_sobject(client, "foo", "Account", [])
     assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
   end
 
-  test "get_sobject with fields", %{bypass: bypass} do
+  test "get_sobject with fields", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       %{"fields" => "Name,Site"} = URI.decode_query(conn.query_string)
 
@@ -178,7 +159,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.get_sobject("foo", "Account", ["Name", "Site"], dummy_config(bypass))
+    {:ok, got} = ExForce.get_sobject(client, "foo", "Account", ["Name", "Site"])
 
     assert got == %SObject{
              id: "foo",
@@ -187,7 +168,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "get_sobject_by_external_id", %{bypass: bypass} do
+  test "get_sobject_by_external_id", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
       "GET",
@@ -210,13 +191,12 @@ defmodule ExForceTest do
       end
     )
 
-    {:ok, got} =
-      ExForce.get_sobject_by_external_id("foo bar", "Foo__c", "Account", dummy_config(bypass))
+    {:ok, got} = ExForce.get_sobject_by_external_id(client, "foo bar", "Foo__c", "Account")
 
     assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
   end
 
-  test "get_sobject_by_relationship", %{bypass: bypass} do
+  test "get_sobject_by_relationship", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
       "GET",
@@ -239,13 +219,12 @@ defmodule ExForceTest do
       end
     )
 
-    {:ok, got} =
-      ExForce.get_sobject_by_relationship("foo", "Account", "Owner", [], dummy_config(bypass))
+    {:ok, got} = ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owner", [])
 
     assert got == %SObject{id: "bar", type: "User", data: %{"Id" => "bar", "Name" => "name"}}
   end
 
-  test "get_sobject_by_relationship with fields", %{bypass: bypass} do
+  test "get_sobject_by_relationship with fields", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
       "GET",
@@ -271,13 +250,10 @@ defmodule ExForceTest do
     )
 
     {:ok, got} =
-      ExForce.get_sobject_by_relationship(
-        "foo",
-        "Account",
-        "Owner",
-        ["FirstName", "LastName"],
-        dummy_config(bypass)
-      )
+      ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owner", [
+        "FirstName",
+        "LastName"
+      ])
 
     assert got == %SObject{
              id: "bar",
@@ -286,11 +262,11 @@ defmodule ExForceTest do
            }
   end
 
-  test "create_sobject - success", %{bypass: bypass} do
+  test "create_sobject - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
       {:ok, raw, conn} = Conn.read_body(conn)
       expected_body = %{"FirstName" => "first_name"}
-      ^expected_body = Poison.decode!(raw)
+      ^expected_body = Jason.decode!(raw)
 
       resp_body = """
       {
@@ -307,18 +283,14 @@ defmodule ExForceTest do
     end)
 
     {:ok, "001D000000IqhSLIAZ"} =
-      ExForce.create_sobject(
-        "Account",
-        %{"FirstName" => "first_name"},
-        dummy_config(bypass)
-      )
+      ExForce.create_sobject(client, "Account", %{"FirstName" => "first_name"})
   end
 
-  test "create_sobject - failure", %{bypass: bypass} do
+  test "create_sobject - failure", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
       {:ok, raw, conn} = Conn.read_body(conn)
       expected_body = %{"FirstName" => "first_name"}
-      ^expected_body = Poison.decode!(raw)
+      ^expected_body = Jason.decode!(raw)
 
       resp_body = """
         [
@@ -329,15 +301,14 @@ defmodule ExForceTest do
         ]
       """
 
-      ^expected_body = Poison.decode!(raw)
+      ^expected_body = Jason.decode!(raw)
 
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(400, resp_body)
     end)
 
-    {:error, got} =
-      ExForce.create_sobject("Account", %{"FirstName" => "first_name"}, dummy_config(bypass))
+    {:error, got} = ExForce.create_sobject(client, "Account", %{"FirstName" => "first_name"})
 
     assert got == [
              %{
@@ -347,28 +318,22 @@ defmodule ExForceTest do
            ]
   end
 
-  test "update_sobject - success", %{bypass: bypass} do
+  test "update_sobject - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       {:ok, raw, conn} = Conn.read_body(conn)
       expected_body = %{"FirstName" => "first_name"}
-      ^expected_body = Poison.decode!(raw)
+      ^expected_body = Jason.decode!(raw)
       Conn.resp(conn, 204, "")
     end)
 
-    :ok =
-      ExForce.update_sobject(
-        "foo",
-        "Account",
-        %{"FirstName" => "first_name"},
-        dummy_config(bypass)
-      )
+    :ok = ExForce.update_sobject(client, "foo", "Account", %{"FirstName" => "first_name"})
   end
 
-  test "update_sobject - failure", %{bypass: bypass} do
+  test "update_sobject - failure", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       {:ok, raw, conn} = Conn.read_body(conn)
       expected_body = %{"x" => "foo"}
-      ^expected_body = Poison.decode!(raw)
+      ^expected_body = Jason.decode!(raw)
 
       resp_body = """
         [
@@ -379,15 +344,14 @@ defmodule ExForceTest do
         ]
       """
 
-      ^expected_body = Poison.decode!(raw)
+      ^expected_body = Jason.decode!(raw)
 
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(400, resp_body)
     end)
 
-    {:error, got} =
-      ExForce.update_sobject("foo", "Account", %{"x" => "foo"}, dummy_config(bypass))
+    {:error, got} = ExForce.update_sobject(client, "foo", "Account", %{"x" => "foo"})
 
     assert got == [
              %{
@@ -397,15 +361,15 @@ defmodule ExForceTest do
            ]
   end
 
-  test "delete_sobject - success", %{bypass: bypass} do
+  test "delete_sobject - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       Conn.resp(conn, 204, "")
     end)
 
-    :ok = ExForce.delete_sobject("foo", "Account", dummy_config(bypass))
+    :ok = ExForce.delete_sobject(client, "foo", "Account")
   end
 
-  test "delete_sobject - failure", %{bypass: bypass} do
+  test "delete_sobject - failure", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       resp_body = """
       [
@@ -421,7 +385,7 @@ defmodule ExForceTest do
       |> Conn.resp(404, resp_body)
     end)
 
-    {:error, got} = ExForce.delete_sobject("foo", "Account", dummy_config(bypass))
+    {:error, got} = ExForce.delete_sobject(client, "foo", "Account")
 
     assert got == [
              %{
@@ -431,7 +395,7 @@ defmodule ExForceTest do
            ]
   end
 
-  test "query - sobjects", %{bypass: bypass} do
+  test "query - sobjects", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
       %{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"} =
         URI.decode_query(conn.query_string)
@@ -464,8 +428,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} =
-      ExForce.query("SELECT Name, Owner.Name FROM Account LIMIT 1", dummy_config(bypass))
+    {:ok, got} = ExForce.query(client, "SELECT Name, Owner.Name FROM Account LIMIT 1")
 
     assert got == %QueryResult{
              done: true,
@@ -488,7 +451,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "query - sobjects with next url", %{bypass: bypass} do
+  test "query - sobjects with next url", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
       %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
 
@@ -514,7 +477,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.query("SELECT Name FROM Account", dummy_config(bypass))
+    {:ok, got} = ExForce.query(client, "SELECT Name FROM Account")
 
     assert got == %QueryResult{
              done: false,
@@ -526,7 +489,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "query - aggregate", %{bypass: bypass} do
+  test "query - aggregate", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
       %{"q" => "SELECT COUNT(Id) count_id FROM Account"} = URI.decode_query(conn.query_string)
 
@@ -550,7 +513,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.query("SELECT COUNT(Id) count_id FROM Account", dummy_config(bypass))
+    {:ok, got} = ExForce.query(client, "SELECT COUNT(Id) count_id FROM Account")
 
     assert got == %QueryResult{
              done: true,
@@ -560,7 +523,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "query_stream", %{bypass: bypass} do
+  test "query_stream", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
       %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
 
@@ -621,15 +584,14 @@ defmodule ExForceTest do
     end)
 
     got =
-      "SELECT Name FROM Account"
-      |> ExForce.query_stream(dummy_config(bypass))
+      ExForce.query_stream(client, "SELECT Name FROM Account")
       |> Enum.map(fn %SObject{id: id} -> id end)
       |> Enum.to_list()
 
     assert got == ["account1", "account2", "account3", "account4"]
   end
 
-  test "query_retrieve with query id", %{bypass: bypass} do
+  test "query_retrieve with query id", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
       resp_body = """
       {
@@ -653,7 +615,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} = ExForce.query_retrieve("queryid-200", dummy_config(bypass))
+    {:ok, got} = ExForce.query_retrieve(client, "queryid-200")
 
     assert got == %QueryResult{
              done: false,
@@ -665,7 +627,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "query_retrieve with next url", %{bypass: bypass} do
+  test "query_retrieve with next url", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
       resp_body = """
       {
@@ -689,8 +651,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} =
-      ExForce.query_retrieve("/services/data/v40.0/query/queryid-200", dummy_config(bypass))
+    {:ok, got} = ExForce.query_retrieve(client, "/services/data/v40.0/query/queryid-200")
 
     assert got == %QueryResult{
              done: false,
@@ -702,7 +663,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "query_all - sobjects", %{bypass: bypass} do
+  test "query_all - sobjects", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
       %{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"} =
         URI.decode_query(conn.query_string)
@@ -735,8 +696,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, resp_body)
     end)
 
-    {:ok, got} =
-      ExForce.query_all("SELECT Name, Owner.Name FROM Account LIMIT 1", dummy_config(bypass))
+    {:ok, got} = ExForce.query_all(client, "SELECT Name, Owner.Name FROM Account LIMIT 1")
 
     assert got == %QueryResult{
              done: true,
@@ -759,7 +719,7 @@ defmodule ExForceTest do
            }
   end
 
-  test "query_all_stream", %{bypass: bypass} do
+  test "query_all_stream", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
       %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
 
@@ -820,30 +780,28 @@ defmodule ExForceTest do
     end)
 
     got =
-      "SELECT Name FROM Account"
-      |> ExForce.query_all_stream(dummy_config(bypass))
+      ExForce.query_all_stream(client, "SELECT Name FROM Account")
       |> Enum.map(fn %SObject{id: id} -> id end)
       |> Enum.to_list()
 
     assert got == ["account1", "account2", "account3", "account4"]
   end
 
-  test "stream_query_result - zero result", %{bypass: bypass} do
+  test "stream_query_result - zero result", %{client: client} do
     initial = %QueryResult{
       records: [],
       done: true
     }
 
     got =
-      initial
-      |> ExForce.stream_query_result(dummy_config(bypass))
+      ExForce.stream_query_result(client, initial)
       |> Enum.map(fn %SObject{id: id} -> id end)
       |> Enum.to_list()
 
     assert got == []
   end
 
-  test "stream_query_result - zero page", %{bypass: bypass} do
+  test "stream_query_result - zero page", %{client: client} do
     initial = %QueryResult{
       records: [
         %SObject{id: "account1"},
@@ -853,15 +811,14 @@ defmodule ExForceTest do
     }
 
     got =
-      initial
-      |> ExForce.stream_query_result(dummy_config(bypass))
+      ExForce.stream_query_result(client, initial)
       |> Enum.map(fn %SObject{id: id} -> id end)
       |> Enum.to_list()
 
     assert got == ["account1", "account2"]
   end
 
-  test "stream_query_result - two pages", %{bypass: bypass} do
+  test "stream_query_result - two pages", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
       resp_body = """
       {
@@ -927,8 +884,7 @@ defmodule ExForceTest do
     }
 
     got =
-      initial
-      |> ExForce.stream_query_result(dummy_config(bypass))
+      ExForce.stream_query_result(client, initial)
       |> Enum.map(fn %SObject{id: id} -> id end)
       |> Enum.to_list()
 
