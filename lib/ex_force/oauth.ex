@@ -161,23 +161,24 @@ defmodule ExForce.OAuth do
   end
 
   defp verify_signature(
-         resp = %OAuthResponse{id: id, issued_at: issued_at, signature: signature},
+         %OAuthResponse{id: id, issued_at: issued_at, signature: signature} = resp,
          client_secret
        ) do
+    if signature == calculate_signature(id, issued_at, client_secret) do
+      {:ok, resp}
+    else
+      {:error, :invalid_signature}
+    end
+  end
+
+  defp calculate_signature(id, issued_at, client_secret) do
     issued_at_raw =
       issued_at
       |> DateTime.to_unix(:millisecond)
       |> Integer.to_string()
 
-    calculated =
-      :sha256
-      |> :crypto.hmac(client_secret, id <> issued_at_raw)
-      |> Base.encode64()
-
-    if calculated == signature do
-      {:ok, resp}
-    else
-      {:error, :invalid_signature}
-    end
+    :sha256
+    |> :crypto.hmac(client_secret, id <> issued_at_raw)
+    |> Base.encode64()
   end
 end

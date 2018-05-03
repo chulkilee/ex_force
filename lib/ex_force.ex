@@ -111,7 +111,7 @@ defmodule ExForce do
   @spec basic_info(Client.t(), sobject_name) :: {:ok, map} | {:error, any}
   def basic_info(client, name) do
     case request(client, method: :get, url: "sobjects/#{name}") do
-      {:ok, %Tesla.Env{status: 200, body: body = %{"recentItems" => recent_items}}} ->
+      {:ok, %Tesla.Env{status: 200, body: %{"recentItems" => recent_items} = body}} ->
         {:ok, Map.put(body, "recentItems", Enum.map(recent_items, &SObject.build/1))}
 
       {:ok, %Tesla.Env{body: body}} ->
@@ -273,21 +273,23 @@ defmodule ExForce do
   @spec query_all_stream(Client.t(), soql) :: Enumerable.t()
   def query_all_stream(client, soql), do: start_query_stream(client, &query_all/2, soql)
 
-  defp build_result_set(resp = %{"records" => records, "totalSize" => total_size}) do
-    result_set =
-      case resp do
-        %{"done" => true} ->
-          %QueryResult{done: true}
+  defp build_result_set(%{"records" => records, "totalSize" => total_size} = resp) do
+    case resp do
+      %{"done" => true} ->
+        %QueryResult{
+          done: true,
+          total_size: total_size,
+          records: records |> Enum.map(&SObject.build/1)
+        }
 
-        %{"done" => false, "nextRecordsUrl" => next_records_url} ->
-          %QueryResult{done: false, next_records_url: next_records_url}
-      end
-
-    %QueryResult{
-      result_set
-      | total_size: total_size,
-        records: records |> Enum.map(&SObject.build/1)
-    }
+      %{"done" => false, "nextRecordsUrl" => next_records_url} ->
+        %QueryResult{
+          done: false,
+          next_records_url: next_records_url,
+          total_size: total_size,
+          records: records |> Enum.map(&SObject.build/1)
+        }
+    end
   end
 
   @spec start_query_stream(
@@ -304,18 +306,18 @@ defmodule ExForce do
   Returns `Enumerable.t` from the `QueryResult`.
   """
   @spec stream_query_result(Client.t(), QueryResult.t()) :: Enumerable.t()
-  def stream_query_result(client, qr = %QueryResult{}) do
+  def stream_query_result(client, %QueryResult{} = qr) do
     Stream.unfold({client, qr}, &stream_unfold/1)
   end
 
-  defp stream_unfold({client, qr = %QueryResult{records: [h | tail]}}),
+  defp stream_unfold({client, %QueryResult{records: [h | tail]} = qr}),
     do: {h, {client, %QueryResult{qr | records: tail}}}
 
   defp stream_unfold({
          client,
          %QueryResult{records: [], done: false, next_records_url: next_records_url}
        }) do
-    {:ok, qr = %QueryResult{records: [h | tail]}} = query_retrieve(client, next_records_url)
+    {:ok, %QueryResult{records: [h | tail]} = qr} = query_retrieve(client, next_records_url)
     {h, {client, %QueryResult{qr | records: tail}}}
   end
 
