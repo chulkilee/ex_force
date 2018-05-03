@@ -38,10 +38,10 @@ defmodule ExForce.Mixfile do
       {:httpoison, "~> 0.13"},
       {:poison, "~> 3.1"},
       {:bypass, "~> 0.8", only: :test},
-      {:credo, "~> 0.8", only: [:dev, :test], runtime: false},
+      {:credo, "~> 0.9", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.7", only: :test},
-      {:ex_doc, "~> 0.16", only: :docs, runtime: false},
+      {:excoveralls, "~> 0.8", only: :test},
+      {:ex_doc, "~> 0.18", only: :docs, runtime: false},
       {:inch_ex, "~> 0.5", only: :docs}
     ]
   end
