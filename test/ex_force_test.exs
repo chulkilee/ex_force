@@ -5,6 +5,8 @@ defmodule ExForceTest do
   alias ExForce.{QueryResult, SObject}
   alias Plug.Conn
 
+  @unreachable_url "http://257.0.0.0:0"
+
   setup do
     with bypass <- Bypass.open(),
          client <-
@@ -17,73 +19,99 @@ defmodule ExForceTest do
     end
   end
 
-  def bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
+  defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
-  test "versions", %{bypass: bypass} do
+  defp client_with_econnrefused(),
+    do: ExForce.build_client(@unreachable_url, access_token: "foo", api_version: "40.0")
+
+  defp assert_json_body(conn, expected) do
+    ["application/json" <> _] = Conn.get_req_header(conn, "content-type")
+    {:ok, raw, conn} = Conn.read_body(conn)
+    assert Jason.decode!(raw) == expected
+    conn
+  end
+
+  def assert_query_params(conn, expected) do
+    assert URI.decode_query(conn.query_string) == expected
+    conn
+  end
+
+  defp map_sobject_id(enum), do: Enum.map(enum, fn %SObject{id: id} -> id end)
+
+  test "versions/1 - success", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/services/data", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       [
         {"label": "Winter '11", "url": "/services/data/v20.0", "version": "20.0"},
         {"label": "Spring '11", "url": "/services/data/v21.0", "version": "21.0"}
       ]
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.versions(bypass_url(bypass))
-
-    assert got == [
-             %{"label" => "Winter '11", "url" => "/services/data/v20.0", "version" => "20.0"},
-             %{"label" => "Spring '11", "url" => "/services/data/v21.0", "version" => "21.0"}
-           ]
+    assert ExForce.versions(bypass_url(bypass)) ==
+             {:ok,
+              [
+                %{"label" => "Winter '11", "url" => "/services/data/v20.0", "version" => "20.0"},
+                %{"label" => "Spring '11", "url" => "/services/data/v21.0", "version" => "21.0"}
+              ]}
   end
 
-  test "resources", %{bypass: bypass, client: client} do
+  test "versions/1 - network error" do
+    assert ExForce.versions(@unreachable_url) == {:error, :econnrefused}
+  end
+
+  test "resources/2 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v38.0", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "tooling": "/services/data/v38.0/tooling",
         "eclair": "/services/data/v38.0/eclair"
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.resources(client, "38.0")
-
-    assert got == %{
-             "eclair" => "/services/data/v38.0/eclair",
-             "tooling" => "/services/data/v38.0/tooling"
-           }
+    assert ExForce.resources(client, "38.0") ==
+             {:ok,
+              %{
+                "eclair" => "/services/data/v38.0/eclair",
+                "tooling" => "/services/data/v38.0/tooling"
+              }}
   end
 
-  test "describe_sobject", %{bypass: bypass, client: client} do
+  test "resources/1 - network error" do
+    assert ExForce.resources(client_with_econnrefused(), "38.0") == {:error, :econnrefused}
+  end
+
+  test "describe_sobject/2 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/describe", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "actionOverrides": [],
         "activateable": false
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.describe_sobject(client, "Account")
-    assert got == %{"actionOverrides" => [], "activateable" => false}
+    assert ExForce.describe_sobject(client, "Account") ==
+             {:ok, %{"actionOverrides" => [], "activateable" => false}}
   end
 
-  test "basic_info", %{bypass: bypass, client: client} do
+  test "describe_sobject/2 - network error" do
+    assert ExForce.describe_sobject(client_with_econnrefused(), "Account") ==
+             {:error, :econnrefused}
+  end
+
+  test "basic_info/2 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "objectDescribe": {
           "label": "Account"
@@ -99,26 +127,28 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.basic_info(client, "Account")
-
-    assert got == %{
-             "objectDescribe" => %{"label" => "Account"},
-             "recentItems" => [
-               %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
-             ]
-           }
+    assert ExForce.basic_info(client, "Account") ==
+             {:ok,
+              %{
+                "objectDescribe" => %{"label" => "Account"},
+                "recentItems" => [
+                  %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
+                ]
+              }}
   end
 
-  test "get_sobject", %{bypass: bypass, client: client} do
+  test "basic_info/2 - network error" do
+    assert ExForce.basic_info(client_with_econnrefused(), "Account") == {:error, :econnrefused}
+  end
+
+  test "get_sobject/4 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "attributes": {
           "type": "Account",
@@ -127,22 +157,19 @@ defmodule ExForceTest do
         "Id": "foo",
         "Name": "name"
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.get_sobject(client, "foo", "Account", [])
-    assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
+    assert ExForce.get_sobject(client, "foo", "Account", []) ==
+             {:ok, %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}}
   end
 
-  test "get_sobject with fields", %{bypass: bypass, client: client} do
+  test "get_sobject/4 - success with fields", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
-      %{"fields" => "Name,Site"} = URI.decode_query(conn.query_string)
-
-      resp_body = """
+      conn
+      |> assert_query_params(%{"fields" => "Name,Site"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "attributes": {
           "type": "Account",
@@ -152,29 +179,32 @@ defmodule ExForceTest do
         "Name": "name",
         "Site": null
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.get_sobject(client, "foo", "Account", ["Name", "Site"])
-
-    assert got == %SObject{
-             id: "foo",
-             type: "Account",
-             data: %{"Id" => "foo", "Name" => "name", "Site" => nil}
-           }
+    assert ExForce.get_sobject(client, "foo", "Account", ["Name", "Site"]) ==
+             {:ok,
+              %SObject{
+                id: "foo",
+                type: "Account",
+                data: %{"Id" => "foo", "Name" => "name", "Site" => nil}
+              }}
   end
 
-  test "get_sobject_by_external_id", %{bypass: bypass, client: client} do
+  test "get_sobject/4 - network error" do
+    assert ExForce.get_sobject(client_with_econnrefused(), "foo", "Account", []) ==
+             {:error, :econnrefused}
+  end
+
+  test "get_sobject_by_external_id/4", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
       "GET",
       "/services/data/v40.0/sobjects/Account/Foo__c/foo%20bar",
       fn conn ->
-        resp_body = """
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, """
         {
           "attributes": {
             "type": "Account",
@@ -183,26 +213,32 @@ defmodule ExForceTest do
           "Id": "foo",
           "Name": "name"
         }
-        """
-
-        conn
-        |> Conn.put_resp_content_type("application/json")
-        |> Conn.resp(200, resp_body)
+        """)
       end
     )
 
-    {:ok, got} = ExForce.get_sobject_by_external_id(client, "foo bar", "Foo__c", "Account")
-
-    assert got == %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}
+    assert ExForce.get_sobject_by_external_id(client, "foo bar", "Foo__c", "Account") ==
+             {:ok, %SObject{id: "foo", type: "Account", data: %{"Id" => "foo", "Name" => "name"}}}
   end
 
-  test "get_sobject_by_relationship", %{bypass: bypass, client: client} do
+  test "get_sobject_by_external_id/4 - network error" do
+    assert ExForce.get_sobject_by_external_id(
+             client_with_econnrefused(),
+             "foo bar",
+             "Foo__c",
+             "Account"
+           ) == {:error, :econnrefused}
+  end
+
+  test "get_sobject_by_relationship/5 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
       "GET",
       "/services/data/v40.0/sobjects/Account/foo/Owner",
       fn conn ->
-        resp_body = """
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, """
         {
           "attributes": {
             "type": "User",
@@ -211,28 +247,24 @@ defmodule ExForceTest do
           "Id": "bar",
           "Name": "name"
         }
-        """
-
-        conn
-        |> Conn.put_resp_content_type("application/json")
-        |> Conn.resp(200, resp_body)
+        """)
       end
     )
 
-    {:ok, got} = ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owner", [])
-
-    assert got == %SObject{id: "bar", type: "User", data: %{"Id" => "bar", "Name" => "name"}}
+    assert ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owner", []) ==
+             {:ok, %SObject{id: "bar", type: "User", data: %{"Id" => "bar", "Name" => "name"}}}
   end
 
-  test "get_sobject_by_relationship with fields", %{bypass: bypass, client: client} do
+  test "get_sobject_by_relationship/5 - success with fields", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
       "GET",
       "/services/data/v40.0/sobjects/Account/foo/Owner",
       fn conn ->
-        %{"fields" => "FirstName,LastName"} = URI.decode_query(conn.query_string)
-
-        resp_body = """
+        conn
+        |> assert_query_params(%{"fields" => "FirstName,LastName"})
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, """
         {
           "attributes": {
             "type": "User",
@@ -241,166 +273,166 @@ defmodule ExForceTest do
           "FirstName": "first_name",
           "LastName": "last_name"
         }
-        """
-
-        conn
-        |> Conn.put_resp_content_type("application/json")
-        |> Conn.resp(200, resp_body)
+        """)
       end
     )
 
-    {:ok, got} =
-      ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owner", [
-        "FirstName",
-        "LastName"
-      ])
-
-    assert got == %SObject{
-             id: "bar",
-             type: "User",
-             data: %{"FirstName" => "first_name", "LastName" => "last_name"}
-           }
+    assert ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owner", [
+             "FirstName",
+             "LastName"
+           ]) ==
+             {:ok,
+              %SObject{
+                id: "bar",
+                type: "User",
+                data: %{"FirstName" => "first_name", "LastName" => "last_name"}
+              }}
   end
 
-  test "create_sobject - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
-      {:ok, raw, conn} = Conn.read_body(conn)
-      expected_body = %{"FirstName" => "first_name"}
-      ^expected_body = Jason.decode!(raw)
+  test "get_sobject_by_relationship/5 - network error" do
+    assert ExForce.get_sobject_by_relationship(
+             client_with_econnrefused(),
+             "foo",
+             "Account",
+             "Owner",
+             []
+           ) == {:error, :econnrefused}
+  end
 
-      resp_body = """
+  test "create_sobject/3 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
+      conn
+      |> assert_json_body(%{"FirstName" => "first_name"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(201, """
       {
         "id": "001D000000IqhSLIAZ",
         "errors": [],
         "success": true,
         "warnings": []
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(201, resp_body)
+      """)
     end)
 
-    {:ok, "001D000000IqhSLIAZ"} =
-      ExForce.create_sobject(client, "Account", %{"FirstName" => "first_name"})
+    assert ExForce.create_sobject(client, "Account", %{"FirstName" => "first_name"}) ==
+             {:ok, "001D000000IqhSLIAZ"}
   end
 
-  test "create_sobject - failure", %{bypass: bypass, client: client} do
+  test "create_sobject/3 - failure", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
-      {:ok, raw, conn} = Conn.read_body(conn)
-      expected_body = %{"FirstName" => "first_name"}
-      ^expected_body = Jason.decode!(raw)
-
-      resp_body = """
+      conn
+      |> assert_json_body(%{"FirstName" => "first_name"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(400, """
         [
           {
             "message": "No such column 'x' on sobject of type Account",
             "errorCode": "INVALID_FIELD"
           }
         ]
-      """
+      """)
+    end)
 
-      ^expected_body = Jason.decode!(raw)
+    assert ExForce.create_sobject(client, "Account", %{"FirstName" => "first_name"}) ==
+             {:error,
+              [
+                %{
+                  "errorCode" => "INVALID_FIELD",
+                  "message" => "No such column 'x' on sobject of type Account"
+                }
+              ]}
+  end
 
+  test "create_sobject/3 - network error" do
+    assert ExForce.create_sobject(client_with_econnrefused(), "Account", %{
+             "FirstName" => "first_name"
+           }) == {:error, :econnrefused}
+  end
+
+  test "update_sobject/4 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       conn
+      |> assert_json_body(%{"FirstName" => "first_name"})
+      |> Conn.resp(204, "")
+    end)
+
+    assert ExForce.update_sobject(client, "foo", "Account", %{"FirstName" => "first_name"}) == :ok
+  end
+
+  test "update_sobject/4 - failure", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+      conn
+      |> assert_json_body(%{"x" => "foo"})
       |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(400, resp_body)
-    end)
-
-    {:error, got} = ExForce.create_sobject(client, "Account", %{"FirstName" => "first_name"})
-
-    assert got == [
-             %{
-               "errorCode" => "INVALID_FIELD",
-               "message" => "No such column 'x' on sobject of type Account"
-             }
-           ]
-  end
-
-  test "update_sobject - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
-      {:ok, raw, conn} = Conn.read_body(conn)
-      expected_body = %{"FirstName" => "first_name"}
-      ^expected_body = Jason.decode!(raw)
-      Conn.resp(conn, 204, "")
-    end)
-
-    :ok = ExForce.update_sobject(client, "foo", "Account", %{"FirstName" => "first_name"})
-  end
-
-  test "update_sobject - failure", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
-      {:ok, raw, conn} = Conn.read_body(conn)
-      expected_body = %{"x" => "foo"}
-      ^expected_body = Jason.decode!(raw)
-
-      resp_body = """
+      |> Conn.resp(400, """
         [
           {
             "message": "No such column 'x' on sobject of type Account",
             "errorCode": "INVALID_FIELD"
           }
         ]
-      """
-
-      ^expected_body = Jason.decode!(raw)
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(400, resp_body)
+      """)
     end)
 
-    {:error, got} = ExForce.update_sobject(client, "foo", "Account", %{"x" => "foo"})
-
-    assert got == [
-             %{
-               "errorCode" => "INVALID_FIELD",
-               "message" => "No such column 'x' on sobject of type Account"
-             }
-           ]
+    assert ExForce.update_sobject(client, "foo", "Account", %{"x" => "foo"}) ==
+             {:error,
+              [
+                %{
+                  "errorCode" => "INVALID_FIELD",
+                  "message" => "No such column 'x' on sobject of type Account"
+                }
+              ]}
   end
 
-  test "delete_sobject - success", %{bypass: bypass, client: client} do
+  test "update_sobject/4 - network error" do
+    assert ExForce.update_sobject(client_with_econnrefused(), "foo", "Account", %{"x" => "foo"}) ==
+             {:error, :econnrefused}
+  end
+
+  test "delete_sobject/3 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       Conn.resp(conn, 204, "")
     end)
 
-    :ok = ExForce.delete_sobject(client, "foo", "Account")
+    assert ExForce.delete_sobject(client, "foo", "Account") == :ok
   end
 
-  test "delete_sobject - failure", %{bypass: bypass, client: client} do
+  test "delete_sobject/3 - failure", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(404, """
       [
         {
           "errorCode": "NOT_FOUND",
           "message": "Provided external ID field does not exist or is not accessible: foo"
         }
       ]
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(404, resp_body)
+      """)
     end)
 
-    {:error, got} = ExForce.delete_sobject(client, "foo", "Account")
-
-    assert got == [
-             %{
-               "errorCode" => "NOT_FOUND",
-               "message" => "Provided external ID field does not exist or is not accessible: foo"
-             }
-           ]
+    assert ExForce.delete_sobject(client, "foo", "Account") ==
+             {:error,
+              [
+                %{
+                  "errorCode" => "NOT_FOUND",
+                  "message" =>
+                    "Provided external ID field does not exist or is not accessible: foo"
+                }
+              ]}
   end
 
-  test "query - sobjects", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
-      %{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"} =
-        URI.decode_query(conn.query_string)
+  test "delete_sobject/3 - network error" do
+    assert ExForce.delete_sobject(client_with_econnrefused(), "foo", "Account") ==
+             {:error, :econnrefused}
+  end
 
-      resp_body = """
+  test "query/2 - success - sobjects", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 1,
         "done": true,
@@ -421,41 +453,38 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.query(client, "SELECT Name, Owner.Name FROM Account LIMIT 1")
-
-    assert got == %QueryResult{
-             done: true,
-             next_records_url: nil,
-             records: [
-               %SObject{
-                 id: "foo",
-                 type: "Account",
-                 data: %{
-                   "Name" => "account name",
-                   "Owner" => %SObject{
-                     id: "bar",
-                     type: "User",
-                     data: %{"Name" => "user name"}
-                   }
-                 }
-               }
-             ],
-             total_size: 1
-           }
+    assert ExForce.query(client, "SELECT Name, Owner.Name FROM Account LIMIT 1") ==
+             {:ok,
+              %QueryResult{
+                done: true,
+                next_records_url: nil,
+                records: [
+                  %SObject{
+                    id: "foo",
+                    type: "Account",
+                    data: %{
+                      "Name" => "account name",
+                      "Owner" => %SObject{
+                        id: "bar",
+                        type: "User",
+                        data: %{"Name" => "user name"}
+                      }
+                    }
+                  }
+                ],
+                total_size: 1
+              }}
   end
 
-  test "query - sobjects with next url", %{bypass: bypass, client: client} do
+  test "query/2 - success - sobjects with next url", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
-      %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
-
-      resp_body = """
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 500,
         "done": false,
@@ -470,30 +499,27 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.query(client, "SELECT Name FROM Account")
-
-    assert got == %QueryResult{
-             done: false,
-             next_records_url: "/services/data/v40.0/query/queryid-2000",
-             records: [
-               %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
-             ],
-             total_size: 500
-           }
+    assert ExForce.query(client, "SELECT Name FROM Account") ==
+             {:ok,
+              %QueryResult{
+                done: false,
+                next_records_url: "/services/data/v40.0/query/queryid-2000",
+                records: [
+                  %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
+                ],
+                total_size: 500
+              }}
   end
 
-  test "query - aggregate", %{bypass: bypass, client: client} do
+  test "query/2 - success - aggregate", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
-      %{"q" => "SELECT COUNT(Id) count_id FROM Account"} = URI.decode_query(conn.query_string)
-
-      resp_body = """
+      conn
+      |> assert_query_params(%{"q" => "SELECT COUNT(Id) count_id FROM Account"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 1,
         "done": true,
@@ -506,28 +532,30 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.query(client, "SELECT COUNT(Id) count_id FROM Account")
-
-    assert got == %QueryResult{
-             done: true,
-             next_records_url: nil,
-             records: [%SObject{data: %{"count_id" => 7}, type: "AggregateResult"}],
-             total_size: 1
-           }
+    assert ExForce.query(client, "SELECT COUNT(Id) count_id FROM Account") ==
+             {:ok,
+              %QueryResult{
+                done: true,
+                next_records_url: nil,
+                records: [%SObject{data: %{"count_id" => 7}, type: "AggregateResult"}],
+                total_size: 1
+              }}
   end
 
-  test "query_stream", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
-      %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
+  test "query/2 - network error" do
+    assert ExForce.query(client_with_econnrefused(), "SELECT COUNT(Id) count_id FROM Account") ==
+             {:error, :econnrefused}
+  end
 
-      resp_body = """
+  test "query_stream/2 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 4,
         "done": false,
@@ -549,15 +577,13 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 4,
         "done": true,
@@ -576,24 +602,19 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    got =
-      ExForce.query_stream(client, "SELECT Name FROM Account")
-      |> Enum.map(fn %SObject{id: id} -> id end)
-      |> Enum.to_list()
+    stream = ExForce.query_stream(client, "SELECT Name FROM Account")
 
-    assert got == ["account1", "account2", "account3", "account4"]
+    assert map_sobject_id(stream) == ["account1", "account2", "account3", "account4"]
   end
 
-  test "query_retrieve with query id", %{bypass: bypass, client: client} do
+  test "query_retrieve/2 - success with query id", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 500,
         "done": false,
@@ -608,28 +629,26 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.query_retrieve(client, "queryid-200")
-
-    assert got == %QueryResult{
-             done: false,
-             next_records_url: "/services/data/v40.0/query/queryid-400",
-             records: [
-               %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
-             ],
-             total_size: 500
-           }
+    assert ExForce.query_retrieve(client, "queryid-200") ==
+             {:ok,
+              %QueryResult{
+                done: false,
+                next_records_url: "/services/data/v40.0/query/queryid-400",
+                records: [
+                  %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
+                ],
+                total_size: 500
+              }}
   end
 
-  test "query_retrieve with next url", %{bypass: bypass, client: client} do
+  test "query_retrieve/2 - success with next url", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 500,
         "done": false,
@@ -644,31 +663,34 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.query_retrieve(client, "/services/data/v40.0/query/queryid-200")
-
-    assert got == %QueryResult{
-             done: false,
-             next_records_url: "/services/data/v40.0/query/queryid-400",
-             records: [
-               %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
-             ],
-             total_size: 500
-           }
+    assert ExForce.query_retrieve(client, "/services/data/v40.0/query/queryid-200") ==
+             {:ok,
+              %QueryResult{
+                done: false,
+                next_records_url: "/services/data/v40.0/query/queryid-400",
+                records: [
+                  %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
+                ],
+                total_size: 500
+              }}
   end
 
-  test "query_all - sobjects", %{bypass: bypass, client: client} do
+  test "query_retrieve/2 - network error" do
+    assert ExForce.query_retrieve(
+             client_with_econnrefused(),
+             "/services/data/v40.0/query/queryid-200"
+           ) == {:error, :econnrefused}
+  end
+
+  test "query_all/2 - success - sobjects", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
-      %{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"} =
-        URI.decode_query(conn.query_string)
-
-      resp_body = """
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 1,
         "done": true,
@@ -689,41 +711,45 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    {:ok, got} = ExForce.query_all(client, "SELECT Name, Owner.Name FROM Account LIMIT 1")
-
-    assert got == %QueryResult{
-             done: true,
-             next_records_url: nil,
-             records: [
-               %SObject{
-                 id: "foo",
-                 type: "Account",
-                 data: %{
-                   "Name" => "account name",
-                   "Owner" => %SObject{
-                     id: "bar",
-                     type: "User",
-                     data: %{"Name" => "user name"}
-                   }
-                 }
-               }
-             ],
-             total_size: 1
-           }
+    assert ExForce.query_all(client, "SELECT Name, Owner.Name FROM Account LIMIT 1") ==
+             {:ok,
+              %QueryResult{
+                done: true,
+                next_records_url: nil,
+                records: [
+                  %SObject{
+                    id: "foo",
+                    type: "Account",
+                    data: %{
+                      "Name" => "account name",
+                      "Owner" => %SObject{
+                        id: "bar",
+                        type: "User",
+                        data: %{"Name" => "user name"}
+                      }
+                    }
+                  }
+                ],
+                total_size: 1
+              }}
   end
 
-  test "query_all_stream", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
-      %{"q" => "SELECT Name FROM Account"} = URI.decode_query(conn.query_string)
+  test "query_all/2 - network error" do
+    assert ExForce.query_all(
+             client_with_econnrefused(),
+             "SELECT Name, Owner.Name FROM Account LIMIT 1"
+           ) == {:error, :econnrefused}
+  end
 
-      resp_body = """
+  test "query_all_stream/2 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 4,
         "done": false,
@@ -745,15 +771,13 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 4,
         "done": true,
@@ -772,36 +796,26 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
-    got =
-      ExForce.query_all_stream(client, "SELECT Name FROM Account")
-      |> Enum.map(fn %SObject{id: id} -> id end)
-      |> Enum.to_list()
+    stream = ExForce.query_all_stream(client, "SELECT Name FROM Account")
 
-    assert got == ["account1", "account2", "account3", "account4"]
+    assert map_sobject_id(stream) == ["account1", "account2", "account3", "account4"]
   end
 
-  test "stream_query_result - zero result", %{client: client} do
+  test "stream_query_result/2 - zero result", %{client: client} do
     initial = %QueryResult{
       records: [],
       done: true
     }
 
-    got =
-      ExForce.stream_query_result(client, initial)
-      |> Enum.map(fn %SObject{id: id} -> id end)
-      |> Enum.to_list()
+    stream = ExForce.stream_query_result(client, initial)
 
-    assert got == []
+    assert map_sobject_id(stream) == []
   end
 
-  test "stream_query_result - zero page", %{client: client} do
+  test "stream_query_result/2 - zero page", %{client: client} do
     initial = %QueryResult{
       records: [
         %SObject{id: "account1"},
@@ -810,17 +824,16 @@ defmodule ExForceTest do
       done: true
     }
 
-    got =
-      ExForce.stream_query_result(client, initial)
-      |> Enum.map(fn %SObject{id: id} -> id end)
-      |> Enum.to_list()
+    stream = ExForce.stream_query_result(client, initial)
 
-    assert got == ["account1", "account2"]
+    assert map_sobject_id(stream) == ["account1", "account2"]
   end
 
-  test "stream_query_result - two pages", %{bypass: bypass, client: client} do
+  test "stream_query_result/2 - two pages", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 6,
         "done": false,
@@ -840,15 +853,13 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-400", fn conn ->
-      resp_body = """
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
       {
         "totalSize": 6,
         "done": true,
@@ -867,11 +878,7 @@ defmodule ExForceTest do
           }
         ]
       }
-      """
-
-      conn
-      |> Conn.put_resp_content_type("application/json")
-      |> Conn.resp(200, resp_body)
+      """)
     end)
 
     initial = %QueryResult{
@@ -883,11 +890,15 @@ defmodule ExForceTest do
       next_records_url: "/services/data/v40.0/query/queryid-200"
     }
 
-    got =
-      ExForce.stream_query_result(client, initial)
-      |> Enum.map(fn %SObject{id: id} -> id end)
-      |> Enum.to_list()
+    stream = ExForce.stream_query_result(client, initial)
 
-    assert got == ["account1", "account2", "account3", "account4", "account5", "account6"]
+    assert map_sobject_id(stream) == [
+             "account1",
+             "account2",
+             "account3",
+             "account4",
+             "account5",
+             "account6"
+           ]
   end
 end
