@@ -4,7 +4,8 @@
 
 ### Added
 
-- Add `ExForce.OAuth` to support `authorization_code` and `refresh` in addition to `password` grant type.
+- Add `ExForce.OAuth` to support `authorization_code` and `refresh` in addition to `password` grant type. (#2 and #3 by @chulkilee)
+- Add create_sobject (#12 by @epinault, #15 by @dustinfarris)
 
 ## 0.1.0 - 2017-09-13
 
