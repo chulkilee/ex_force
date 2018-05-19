@@ -11,8 +11,7 @@ defmodule ExForceTest do
     with bypass <- Bypass.open(),
          client <-
            ExForce.build_client(
-             bypass_url(bypass),
-             access_token: "foo",
+             %{instance_url: bypass_url(bypass), access_token: "foo"},
              api_version: "40.0"
            ) do
       {:ok, bypass: bypass, client: client}
@@ -22,11 +21,16 @@ defmodule ExForceTest do
   defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
   defp client_with_econnrefused(),
-    do: ExForce.build_client(@unreachable_url, access_token: "foo", api_version: "40.0")
+    do: ExForce.build_client(%{instance_url: @unreachable_url, access_token: "foo"})
+
+  def assert_req_header(conn, key, expected) do
+    assert expected == Conn.get_req_header(conn, key)
+    conn
+  end
 
   defp assert_json_body(conn, expected) do
-    ["application/json" <> _] = Conn.get_req_header(conn, "content-type")
-    {:ok, raw, conn} = Conn.read_body(conn)
+    assert_req_header(conn, "content-type", ["application/json"])
+    assert {:ok, raw, conn} = Conn.read_body(conn)
     assert Jason.decode!(raw) == expected
     conn
   end
@@ -37,6 +41,77 @@ defmodule ExForceTest do
   end
 
   defp map_sobject_id(enum), do: Enum.map(enum, fn %SObject{id: id} -> id end)
+
+  test "build_client/2 - map", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/", fn conn ->
+      conn
+      |> assert_req_header("authorization", ["Bearer foo"])
+      |> assert_req_header("user-agent", ["ex_force"])
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, ~w({"hello": "world"}))
+    end)
+
+    client = ExForce.build_client(%{instance_url: bypass_url(bypass), access_token: "foo"})
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/")
+  end
+
+  test "build_client/2 - string", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/", fn conn ->
+      conn
+      |> assert_req_header("authorization", [])
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, ~w({"hello": "world"}))
+    end)
+
+    client = ExForce.build_client(bypass_url(bypass))
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/")
+  end
+
+  test "build_client/2 - headers", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/", fn conn ->
+      conn
+      |> assert_req_header("user-agent", [])
+      |> assert_req_header("foo", ["bar"])
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, ~w({"hello": "world"}))
+    end)
+
+    client = ExForce.build_client(bypass_url(bypass), headers: [{"foo", "bar"}])
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/")
+  end
+
+  test "build_client/2 - url - api_version - default v42.0", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v42.0/foo", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, ~w({"hello": "world"}))
+    end)
+
+    client = ExForce.build_client(bypass_url(bypass))
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "foo")
+  end
+
+  test "build_client/2 - url - api_version - opts", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v12345.0/foo", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, ~w({"hello": "world"}))
+    end)
+
+    client = ExForce.build_client(bypass_url(bypass), api_version: "12345.0")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "foo")
+  end
+
+  test "build_client/2 - url - /foo", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/foo", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, ~w({"hello": "world"}))
+    end)
+
+    client = ExForce.build_client(bypass_url(bypass), api_version: "12345.0")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/foo")
+  end
 
   test "versions/1 - success", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/services/data", fn conn ->

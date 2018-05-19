@@ -5,24 +5,26 @@ defmodule ExForce do
   ## Usage
 
   ```elixir
-  {:ok, %{access_token: access_token}} = ExForce.OAuth.get_token(
-    "https://login.salesforce.com",
-    grant_type: "password",
-    client_id: "client_id",
-    client_secret: "client_secret",
-    username: "username",
-    password: "password"
-  )
+  {:ok, %{instance_url: instance_url} = oauth_response} =
+    ExForce.OAuth.get_token(
+      "https://login.salesforce.com",
+      grant_type: "password",
+      client_id: "client_id",
+      client_secret: "client_secret",
+      username: "username",
+      password: "password"
+    )
 
-  client = ExForce.build_client("
-    https://login.salesforce.com",
-    access_token: access_token,
-    api_version: "40.0"
-  )
+  {:ok, version_maps} = ExForce.versions(instance_url)
+  latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
+
+  client = ExForce.build_client(oauth_response, api_version: latest_version)
 
   names =
     ExForce.query_stream(client, "SELECT Name FROM Account")
-    |> Enum.map(&(Map.fetch!(&1.data, "Name")))
+    |> Stream.map(&Map.fetch!(&1.data, "Name"))
+    |> Stream.take(50)
+    |> Enum.to_list()
   ```
   """
 
@@ -35,6 +37,9 @@ defmodule ExForce do
   @type field_name :: String.t()
   @type soql :: String.t()
   @type query_id :: String.t()
+
+  @default_api_version "42.0"
+  @default_user_agent "ex_force"
 
   @doc """
   Lists available REST API versions at an instance.
@@ -68,25 +73,27 @@ defmodule ExForce do
 
   Options
 
-  - `:user_agent`: set `user-agent` header; default: `ex_force`
+  - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
+  - `:api_version`: use the given api_version; default: `"#{@default_api_version}"`
   """
-  def build_client(url, opts \\ [user_agent: "ex_force"]) do
-    Tesla.build_client([
-      {ExForce.TeslaMiddleware, {url, Keyword.get(opts, :api_version)}},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      {Tesla.Middleware.JSON, engine: Jason},
-      {Tesla.Middleware.Headers, build_headers(opts)}
-    ])
+  def build_client(instance_url_or_map, opts \\ [headers: [{"user-agent", @default_user_agent}]])
+
+  def build_client(%{instance_url: instance_url, access_token: access_token}, opts) do
+    with headers <- Keyword.get(opts, :headers, []),
+         new_headers <- [{"authorization", "Bearer " <> access_token} | headers],
+         new_opts <- Keyword.put(opts, :headers, new_headers) do
+      build_client(instance_url, new_opts)
+    end
   end
 
-  defp build_headers(opts) do
-    Enum.reduce(opts, [], fn {key, val}, acc ->
-      case key do
-        :user_agent -> [{"user-agent", val} | acc]
-        :access_token -> [{"authorization", "Bearer " <> val} | acc]
-        _ -> acc
-      end
-    end)
+  def build_client(instance_url, opts) when is_binary(instance_url) do
+    Tesla.build_client([
+      {ExForce.TeslaMiddleware,
+       {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
+      {Tesla.Middleware.Compression, format: "gzip"},
+      {Tesla.Middleware.JSON, engine: Jason},
+      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+    ])
   end
 
   @doc """

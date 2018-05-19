@@ -19,6 +19,8 @@ defmodule ExForce.OAuth do
   @type code :: String.t()
   @type redirect_uri :: String.t()
 
+  @default_user_agent "ex_force"
+
   @doc """
   Returns client for OAuth functions
 
@@ -26,21 +28,14 @@ defmodule ExForce.OAuth do
 
   - `:user_agent`
   """
-  def build_client(url, opts \\ [user_agent: "ex_force"]) do
+  def build_client(url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
     Tesla.build_client([
       {Tesla.Middleware.BaseUrl, url},
       {Tesla.Middleware.Compression, format: "gzip"},
       Tesla.Middleware.FormUrlencoded,
       {Tesla.Middleware.DecodeJson, engine: Jason},
-      {Tesla.Middleware.Headers, build_headers(opts)}
+      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
     ])
-  end
-
-  defp build_headers(opts) do
-    case Keyword.get(opts, :user_agent) do
-      nil -> []
-      val -> [{"user-agent", val}]
-    end
   end
 
   @doc """
