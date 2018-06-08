@@ -1,7 +1,7 @@
 defmodule ExForce.Mixfile do
   use Mix.Project
 
-  @version "0.1.1-dev"
+  @version "0.2.0"
 
   def project do
     [

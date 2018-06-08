@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.2.0 - 2018-06-08
+
 ### Added
 
 - Add `ExForce.OAuth` to support `authorization_code` and `refresh` in addition to `password` grant type. (#2 and #3 by @chulkilee)
@@ -23,4 +25,4 @@
 
 - Add basic features
 
-[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.2.0...HEAD
