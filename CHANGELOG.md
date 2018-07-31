@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.2.1 - 2018-07-30
+
 ### Added
 
 - Allow tesla `~> 1.0`
@@ -29,4 +31,4 @@
 
 - Add basic features
 
-[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.2.1...HEAD
