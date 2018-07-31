@@ -27,7 +27,6 @@ defmodule ExForce.SObject do
   defp do_build_data(val) do
     val
     |> Map.delete("attributes")
-    |> Enum.map(fn {k, v} -> {k, do_build(v)} end)
-    |> Enum.into(%{})
+    |> Enum.into(%{}, fn {k, v} -> {k, do_build(v)} end)
   end
 end
