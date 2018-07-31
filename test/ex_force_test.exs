@@ -2,7 +2,7 @@ defmodule ExForceTest do
   use ExUnit.Case, async: true
   doctest(ExForce)
 
-  alias ExForce.{QueryResult, SObject}
+  alias ExForce.{Client, QueryResult, SObject}
   alias Plug.Conn
 
   @unreachable_url "http://257.0.0.0:0"
@@ -20,7 +20,7 @@ defmodule ExForceTest do
 
   defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
-  defp client_with_econnrefused(),
+  defp client_with_econnrefused,
     do: ExForce.build_client(%{instance_url: @unreachable_url, access_token: "foo"})
 
   def assert_req_header(conn, key, expected) do
@@ -52,7 +52,7 @@ defmodule ExForceTest do
     end)
 
     client = ExForce.build_client(%{instance_url: bypass_url(bypass), access_token: "foo"})
-    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/")
   end
 
   test "build_client/2 - string", %{bypass: bypass} do
@@ -64,7 +64,7 @@ defmodule ExForceTest do
     end)
 
     client = ExForce.build_client(bypass_url(bypass))
-    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/")
   end
 
   test "build_client/2 - headers", %{bypass: bypass} do
@@ -77,7 +77,7 @@ defmodule ExForceTest do
     end)
 
     client = ExForce.build_client(bypass_url(bypass), headers: [{"foo", "bar"}])
-    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/")
   end
 
   test "build_client/2 - url - api_version - default v42.0", %{bypass: bypass} do
@@ -88,7 +88,7 @@ defmodule ExForceTest do
     end)
 
     client = ExForce.build_client(bypass_url(bypass))
-    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "foo")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "foo")
   end
 
   test "build_client/2 - url - api_version - opts", %{bypass: bypass} do
@@ -99,7 +99,7 @@ defmodule ExForceTest do
     end)
 
     client = ExForce.build_client(bypass_url(bypass), api_version: "12345.0")
-    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "foo")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "foo")
   end
 
   test "build_client/2 - url - /foo", %{bypass: bypass} do
@@ -110,7 +110,7 @@ defmodule ExForceTest do
     end)
 
     client = ExForce.build_client(bypass_url(bypass), api_version: "12345.0")
-    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = ExForce.Client.get(client, "/foo")
+    assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/foo")
   end
 
   test "versions/1 - success", %{bypass: bypass} do
