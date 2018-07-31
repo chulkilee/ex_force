@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Allow tesla `~> 1.0`
+
 ## 0.2.0 - 2018-06-08
 
 ### Added
