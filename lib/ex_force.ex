@@ -111,6 +111,19 @@ defmodule ExForce do
   end
 
   @doc """
+  Lists the available objects
+
+  See [Describe Global](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_describeGlobal.htm)
+  """
+  @spec describe_global(config_or_func) :: {:ok, map} | {:error, any}
+  def describe_global(config \\ default_config()) do
+    case request_get("/sobjects", config) do
+      %Response{status_code: 200, body: raw} -> {:ok, raw}
+      %Response{body: raw} -> {:error, raw}
+    end
+  end
+
+  @doc """
   Retrieves extended metadata for the specified SObject.
 
   See [SObject Describe](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_describe.htm)
