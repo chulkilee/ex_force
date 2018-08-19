@@ -161,6 +161,46 @@ defmodule ExForceTest do
     assert ExForce.resources(client_with_econnrefused(), "38.0") == {:error, :econnrefused}
   end
 
+  test "describe_global/1 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      {
+        "encoding": "UTF-8",
+        "maxBatchSize": 200,
+        "sobjects": [
+          {
+            "activateable": false,
+            "name": "Account",
+            "urls": {
+              "sobject": "/services/data/v40.0/sobjects/Account"
+            }
+          }
+        ]
+      }
+      """)
+    end)
+
+    assert ExForce.describe_global(client) ==
+             {:ok,
+              %{
+                "encoding" => "UTF-8",
+                "maxBatchSize" => 200,
+                "sobjects" => [
+                  %{
+                    "activateable" => false,
+                    "name" => "Account",
+                    "urls" => %{"sobject" => "/services/data/v40.0/sobjects/Account"}
+                  }
+                ]
+              }}
+  end
+
+  test "describe_global/1 - network error" do
+    assert ExForce.describe_global(client_with_econnrefused()) == {:error, :econnrefused}
+  end
+
   test "describe_sobject/2 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/describe", fn conn ->
       conn

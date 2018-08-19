@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `describe_global/1` (based on #18 by @mindreframer)
+
 ## 0.2.1 - 2018-07-30
 
 ### Added
