@@ -111,7 +111,7 @@ defmodule ExForce.OAuth do
   ```
   """
 
-  @spec get_token(Client.t() | String.t(), list) ::
+  @spec get_token(ExForce.Client.t() | String.t(), list) ::
           {:ok, OAuthResponse.t()} | {:error, :invalid_signature | term}
 
   def get_token(url, payload) when is_binary(url), do: url |> build_client() |> get_token(payload)

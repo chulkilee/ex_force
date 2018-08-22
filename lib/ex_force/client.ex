@@ -12,4 +12,6 @@ defmodule ExForce.Client do
   """
 
   use Tesla
+
+  @type t :: Tesla.Client.t()
 end

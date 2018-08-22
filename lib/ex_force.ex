@@ -32,6 +32,7 @@ defmodule ExForce do
 
   import ExForce.Client, only: [request: 2]
 
+  @type client :: ExForce.Client.t()
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
   @type field_name :: String.t()
@@ -60,7 +61,7 @@ defmodule ExForce do
 
   See [Resources by Version](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_discoveryresource.htm)
   """
-  @spec resources(Client.t(), String.t()) :: {:ok, map} | {:error, any}
+  @spec resources(client, String.t()) :: {:ok, map} | {:error, any}
   def resources(client, version) do
     case request(client, method: :get, url: "/services/data/v#{version}") do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
@@ -101,7 +102,7 @@ defmodule ExForce do
 
   See [Describe Global](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_describeGlobal.htm)
   """
-  @spec describe_global(Client.t()) :: {:ok, map} | {:error, any}
+  @spec describe_global(client) :: {:ok, map} | {:error, any}
   def describe_global(client) do
     case request(client, method: :get, url: "sobjects") do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
@@ -115,7 +116,7 @@ defmodule ExForce do
 
   See [SObject Describe](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_describe.htm)
   """
-  @spec describe_sobject(Client.t(), sobject_name) :: {:ok, map} | {:error, any}
+  @spec describe_sobject(client, sobject_name) :: {:ok, map} | {:error, any}
   def describe_sobject(client, name) do
     case request(client, method: :get, url: "sobjects/#{name}/describe") do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
@@ -129,7 +130,7 @@ defmodule ExForce do
 
   See [SObject Basic Information](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
-  @spec basic_info(Client.t(), sobject_name) :: {:ok, map} | {:error, any}
+  @spec basic_info(client, sobject_name) :: {:ok, map} | {:error, any}
   def basic_info(client, name) do
     case request(client, method: :get, url: "sobjects/#{name}") do
       {:ok, %Tesla.Env{status: 200, body: %{"recentItems" => recent_items} = body}} ->
@@ -148,8 +149,7 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
-  @spec get_sobject(Client.t(), sobject_id, sobject_name, list) ::
-          {:ok, SObject.t()} | {:error, any}
+  @spec get_sobject(client, sobject_id, sobject_name, list) :: {:ok, SObject.t()} | {:error, any}
   def get_sobject(client, id, name, fields),
     do: do_get_sobject(client, "sobjects/#{name}/#{id}", fields)
 
@@ -158,7 +158,7 @@ defmodule ExForce do
 
   See [SObject Rows by External ID](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_upsert.htm)
   """
-  @spec get_sobject_by_external_id(Client.t(), any, field_name, sobject_name) ::
+  @spec get_sobject_by_external_id(client, any, field_name, sobject_name) ::
           {:ok, SObject.t()} | {:error, any}
   def get_sobject_by_external_id(client, field_value, field_name, sobject_name),
     do:
@@ -170,7 +170,7 @@ defmodule ExForce do
   See [SObject Relationships](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_relationships.htm)
   """
   @spec get_sobject_by_relationship(
-          Client.t(),
+          client,
           sobject_id,
           sobject_name,
           field_name,
@@ -201,7 +201,7 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
-  @spec update_sobject(Client.t(), sobject_id, sobject_name, map) :: :ok | {:error, any}
+  @spec update_sobject(client, sobject_id, sobject_name, map) :: :ok | {:error, any}
   def update_sobject(client, id, name, attrs) do
     case request(client, method: :patch, url: "sobjects/#{name}/#{id}", body: attrs) do
       {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
@@ -215,7 +215,7 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
-  @spec create_sobject(Client.t(), sobject_name, map) :: :ok | {:error, any}
+  @spec create_sobject(client, sobject_name, map) :: :ok | {:error, any}
   def create_sobject(client, name, attrs) do
     case request(client, method: :post, url: "sobjects/#{name}/", body: attrs) do
       {:ok, %Tesla.Env{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
@@ -229,7 +229,7 @@ defmodule ExForce do
 
   [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
   """
-  @spec delete_sobject(Client.t(), sobject_id, sobject_name) :: :ok | {:error, any}
+  @spec delete_sobject(client, sobject_id, sobject_name) :: :ok | {:error, any}
   def delete_sobject(client, id, name) do
     case request(client, method: :delete, url: "sobjects/#{name}/#{id}") do
       {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
@@ -243,7 +243,7 @@ defmodule ExForce do
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
-  @spec query(Client.t(), soql) :: {:ok, QueryResult.t()} | {:error, any}
+  @spec query(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query(client, soql) do
     case request(client, method: :get, url: "query", query: [q: soql]) do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
@@ -252,7 +252,7 @@ defmodule ExForce do
     end
   end
 
-  @spec query_stream(Client.t(), soql) :: Enumerable.t()
+  @spec query_stream(client, soql) :: Enumerable.t()
   def query_stream(client, soql), do: start_query_stream(client, &query/2, soql)
 
   @doc """
@@ -260,8 +260,7 @@ defmodule ExForce do
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
-  @spec query_retrieve(Client.t(), query_id | String.t()) ::
-          {:ok, QueryResult.t()} | {:error, any}
+  @spec query_retrieve(client, query_id | String.t()) :: {:ok, QueryResult.t()} | {:error, any}
   def query_retrieve(client, query_id_or_url) do
     path =
       if full_path?(query_id_or_url) do
@@ -282,7 +281,7 @@ defmodule ExForce do
 
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
   """
-  @spec query_all(Client.t(), soql) :: {:ok, QueryResult.t()} | {:error, any}
+  @spec query_all(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query_all(client, soql) do
     case request(client, method: :get, url: "queryAll", query: [q: soql]) do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
@@ -291,7 +290,7 @@ defmodule ExForce do
     end
   end
 
-  @spec query_all_stream(Client.t(), soql) :: Enumerable.t()
+  @spec query_all_stream(client, soql) :: Enumerable.t()
   def query_all_stream(client, soql), do: start_query_stream(client, &query_all/2, soql)
 
   defp build_result_set(%{"records" => records, "totalSize" => total_size} = resp) do
@@ -314,8 +313,8 @@ defmodule ExForce do
   end
 
   @spec start_query_stream(
-          Client.t(),
-          (Client.t(), soql -> {:ok, QueryResult.t()} | any),
+          client,
+          (client, soql -> {:ok, QueryResult.t()} | any),
           soql
         ) :: Enumerable.t()
   defp start_query_stream(client, func, soql) do
@@ -326,7 +325,7 @@ defmodule ExForce do
   @doc """
   Returns `Enumerable.t` from the `QueryResult`.
   """
-  @spec stream_query_result(Client.t(), QueryResult.t()) :: Enumerable.t()
+  @spec stream_query_result(client, QueryResult.t()) :: Enumerable.t()
   def stream_query_result(client, %QueryResult{} = qr) do
     Stream.unfold({client, qr}, &stream_unfold/1)
   end

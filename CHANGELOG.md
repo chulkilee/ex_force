@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix type specs
+
 ### Added
 
 - Add `describe_global/1` (based on #18 by @mindreframer)
