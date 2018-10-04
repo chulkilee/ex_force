@@ -215,7 +215,7 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
-  @spec create_sobject(client, sobject_name, map) :: :ok | {:error, any}
+  @spec create_sobject(client, sobject_name, map) :: {:ok, sobject_id} | {:error, any}
   def create_sobject(client, name, attrs) do
     case request(client, method: :post, url: "sobjects/#{name}/", body: attrs) do
       {:ok, %Tesla.Env{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
