@@ -2,9 +2,11 @@
 
 ## [Unreleased]
 
+## 0.2.2 - 2018-10-10
+
 ### Fixed
 
-- Fix type specs
+- Fix type specs (#24, #27 by @ jeroenvisser101)
 
 ### Added
 
@@ -39,4 +41,4 @@
 
 - Add basic features
 
-[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.2.2...HEAD
