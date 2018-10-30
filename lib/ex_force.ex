@@ -18,7 +18,7 @@ defmodule ExForce do
   {:ok, version_maps} = ExForce.versions(instance_url)
   latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
 
-  client = ExForce.build_client(oauth_response, api_version: latest_version)
+  client = ExForce.Client.new(oauth_response, api_version: latest_version)
 
   names =
     ExForce.query_stream(client, "SELECT Name FROM Account")
@@ -28,9 +28,9 @@ defmodule ExForce do
   ```
   """
 
-  alias ExForce.{QueryResult, SObject}
-
   import ExForce.Client, only: [request: 2]
+
+  alias ExForce.{Client, QueryResult, SObject}
 
   @type client :: ExForce.Client.t()
   @type sobject_id :: String.t()
@@ -39,7 +39,6 @@ defmodule ExForce do
   @type soql :: String.t()
   @type query_id :: String.t()
 
-  @default_api_version "42.0"
   @default_user_agent "ex_force"
 
   @doc """
@@ -49,7 +48,7 @@ defmodule ExForce do
   """
   @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
   def versions(instance_url) do
-    case instance_url |> build_client() |> request(method: :get, url: "/services/data") do
+    case instance_url |> Client.new() |> request(method: :get, url: "/services/data") do
       {:ok, %Tesla.Env{status: 200, body: body}} when is_list(body) -> {:ok, body}
       {:ok, %Tesla.Env{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -70,31 +69,9 @@ defmodule ExForce do
     end
   end
 
-  @doc """
-
-  Options
-
-  - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
-  - `:api_version`: use the given api_version; default: `"#{@default_api_version}"`
-  """
-  def build_client(instance_url_or_map, opts \\ [headers: [{"user-agent", @default_user_agent}]])
-
-  def build_client(%{instance_url: instance_url, access_token: access_token}, opts) do
-    with headers <- Keyword.get(opts, :headers, []),
-         new_headers <- [{"authorization", "Bearer " <> access_token} | headers],
-         new_opts <- Keyword.put(opts, :headers, new_headers) do
-      build_client(instance_url, new_opts)
-    end
-  end
-
-  def build_client(instance_url, opts) when is_binary(instance_url) do
-    Tesla.build_client([
-      {ExForce.TeslaMiddleware,
-       {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      {Tesla.Middleware.JSON, engine: Jason},
-      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-    ])
+  @deprecated "Use ExForce.Client.new/2 instead"
+  def build_client(instance_url_or_map, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
+    Client.new(instance_url_or_map, opts)
   end
 
   @doc """

@@ -10,7 +10,7 @@ defmodule ExForceTest do
   setup do
     with bypass <- Bypass.open(),
          client <-
-           ExForce.build_client(
+           Client.new(
              %{instance_url: bypass_url(bypass), access_token: "foo"},
              api_version: "40.0"
            ) do
@@ -21,7 +21,7 @@ defmodule ExForceTest do
   defp bypass_url(bypass), do: "http://127.0.0.1:#{bypass.port}"
 
   defp client_with_econnrefused,
-    do: ExForce.build_client(%{instance_url: @unreachable_url, access_token: "foo"})
+    do: Client.new(%{instance_url: @unreachable_url, access_token: "foo"})
 
   def assert_req_header(conn, key, expected) do
     assert expected == Conn.get_req_header(conn, key)
@@ -51,7 +51,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)
 
-    client = ExForce.build_client(%{instance_url: bypass_url(bypass), access_token: "foo"})
+    client = Client.new(%{instance_url: bypass_url(bypass), access_token: "foo"})
     assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/")
   end
 
@@ -63,7 +63,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)
 
-    client = ExForce.build_client(bypass_url(bypass))
+    client = Client.new(bypass_url(bypass))
     assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/")
   end
 
@@ -76,7 +76,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)
 
-    client = ExForce.build_client(bypass_url(bypass), headers: [{"foo", "bar"}])
+    client = Client.new(bypass_url(bypass), headers: [{"foo", "bar"}])
     assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/")
   end
 
@@ -87,7 +87,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)
 
-    client = ExForce.build_client(bypass_url(bypass))
+    client = Client.new(bypass_url(bypass))
     assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "foo")
   end
 
@@ -98,7 +98,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)
 
-    client = ExForce.build_client(bypass_url(bypass), api_version: "12345.0")
+    client = Client.new(bypass_url(bypass), api_version: "12345.0")
     assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "foo")
   end
 
@@ -109,7 +109,7 @@ defmodule ExForceTest do
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)
 
-    client = ExForce.build_client(bypass_url(bypass), api_version: "12345.0")
+    client = Client.new(bypass_url(bypass), api_version: "12345.0")
     assert {:ok, %{status: 200, body: %{"hello" => "world"}}} = Client.get(client, "/foo")
   end
 

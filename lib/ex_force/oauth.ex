@@ -12,8 +12,6 @@ defmodule ExForce.OAuth do
 
   alias ExForce.OAuthResponse
 
-  import ExForce.Client, only: [request: 2]
-
   @type username :: String.t()
   @type password :: String.t()
   @type code :: String.t()
@@ -29,13 +27,16 @@ defmodule ExForce.OAuth do
   - `:user_agent`
   """
   def build_client(url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
-    Tesla.build_client([
-      {Tesla.Middleware.BaseUrl, url},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      Tesla.Middleware.FormUrlencoded,
-      {Tesla.Middleware.DecodeJson, engine: Jason},
-      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-    ])
+    Tesla.client(
+      [
+        {Tesla.Middleware.BaseUrl, url},
+        {Tesla.Middleware.Compression, format: "gzip"},
+        Tesla.Middleware.FormUrlencoded,
+        {Tesla.Middleware.DecodeJson, engine: Jason},
+        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+      ],
+      Keyword.get(opts, :adapter)
+    )
   end
 
   @doc """
@@ -119,7 +120,7 @@ defmodule ExForce.OAuth do
   def get_token(client, payload) do
     client_secret = Keyword.fetch!(payload, :client_secret)
 
-    case request(client, method: :post, url: "/services/oauth2/token", body: payload) do
+    case Tesla.request(client, method: :post, url: "/services/oauth2/token", body: payload) do
       {:ok,
        %Tesla.Env{
          status: 200,

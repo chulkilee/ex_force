@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Require tesla `~> 1.2`
+- Allow dynamic adaptor configuration via `ExForce.Client.new/2`
+
 ## 0.2.2 - 2018-10-10
 
 ### Fixed
