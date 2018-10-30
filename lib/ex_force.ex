@@ -28,9 +28,7 @@ defmodule ExForce do
   ```
   """
 
-  alias ExForce.{QueryResult, SObject}
-
-  import ExForce.Client, only: [request: 2]
+  alias ExForce.{QueryResult, Response, SObject}
 
   @type client :: ExForce.Client.t()
   @type sobject_id :: String.t()
@@ -50,8 +48,8 @@ defmodule ExForce do
   @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
   def versions(instance_url) do
     case instance_url |> build_client() |> request(method: :get, url: "/services/data") do
-      {:ok, %Tesla.Env{status: 200, body: body}} when is_list(body) -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} when is_list(body) -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -64,8 +62,8 @@ defmodule ExForce do
   @spec resources(client, String.t()) :: {:ok, map} | {:error, any}
   def resources(client, version) do
     case request(client, method: :get, url: "/services/data/v#{version}") do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -105,8 +103,8 @@ defmodule ExForce do
   @spec describe_global(client) :: {:ok, map} | {:error, any}
   def describe_global(client) do
     case request(client, method: :get, url: "sobjects") do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -119,8 +117,8 @@ defmodule ExForce do
   @spec describe_sobject(client, sobject_name) :: {:ok, map} | {:error, any}
   def describe_sobject(client, name) do
     case request(client, method: :get, url: "sobjects/#{name}/describe") do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -133,10 +131,10 @@ defmodule ExForce do
   @spec basic_info(client, sobject_name) :: {:ok, map} | {:error, any}
   def basic_info(client, name) do
     case request(client, method: :get, url: "sobjects/#{name}") do
-      {:ok, %Tesla.Env{status: 200, body: %{"recentItems" => recent_items} = body}} ->
+      {:ok, %Response{status: 200, body: %{"recentItems" => recent_items} = body}} ->
         {:ok, Map.put(body, "recentItems", Enum.map(recent_items, &SObject.build/1))}
 
-      {:ok, %Tesla.Env{body: body}} ->
+      {:ok, %Response{body: body}} ->
         {:error, body}
 
       {:error, _} = other ->
@@ -187,8 +185,8 @@ defmodule ExForce do
 
   defp do_get_sobject(client, path, fields \\ []) do
     case request(client, method: :get, url: path, query: build_fields_query(fields)) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, SObject.build(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, SObject.build(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -204,8 +202,8 @@ defmodule ExForce do
   @spec update_sobject(client, sobject_id, sobject_name, map) :: :ok | {:error, any}
   def update_sobject(client, id, name, attrs) do
     case request(client, method: :patch, url: "sobjects/#{name}/#{id}", body: attrs) do
-      {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 204, body: ""}} -> :ok
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -218,8 +216,8 @@ defmodule ExForce do
   @spec create_sobject(client, sobject_name, map) :: {:ok, sobject_id} | {:error, any}
   def create_sobject(client, name, attrs) do
     case request(client, method: :post, url: "sobjects/#{name}/", body: attrs) do
-      {:ok, %Tesla.Env{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -232,8 +230,8 @@ defmodule ExForce do
   @spec delete_sobject(client, sobject_id, sobject_name) :: :ok | {:error, any}
   def delete_sobject(client, id, name) do
     case request(client, method: :delete, url: "sobjects/#{name}/#{id}") do
-      {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
-      {:ok, %Tesla.Env{status: 404, body: body}} -> {:error, body}
+      {:ok, %Response{status: 204, body: ""}} -> :ok
+      {:ok, %Response{status: 404, body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -246,8 +244,8 @@ defmodule ExForce do
   @spec query(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query(client, soql) do
     case request(client, method: :get, url: "query", query: [q: soql]) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -270,8 +268,8 @@ defmodule ExForce do
       end
 
     case request(client, method: :get, url: path) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -284,8 +282,8 @@ defmodule ExForce do
   @spec query_all(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query_all(client, soql) do
     case request(client, method: :get, url: "queryAll", query: [q: soql]) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -344,4 +342,11 @@ defmodule ExForce do
   defp stream_unfold({_client, %QueryResult{records: [], done: true}}), do: nil
 
   defp full_path?(path), do: String.starts_with?(path, "/services/data/v")
+
+  defp request(client, opts), do: client |> Tesla.request(opts) |> cast()
+
+  defp cast({:ok, %Tesla.Env{status: status, body: body}}),
+    do: {:ok, %Response{status: status, body: body}}
+
+  defp cast({:error, error}), do: {:error, error}
 end
