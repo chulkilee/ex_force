@@ -34,7 +34,7 @@ defmodule ExForce.Mixfile do
 
   defp deps do
     [
-      {:tesla, "~> 1.0"},
+      {:tesla, "~> 1.2"},
       {:jason, "~> 1.0"},
       {:bypass, "~> 0.8", only: :test},
       {:credo, "~> 0.9", only: :dev, runtime: false},
