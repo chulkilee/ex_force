@@ -88,7 +88,7 @@ defmodule ExForce do
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
-    Tesla.build_client([
+    Tesla.client([
       {ExForce.TeslaMiddleware,
        {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
       {Tesla.Middleware.Compression, format: "gzip"},
