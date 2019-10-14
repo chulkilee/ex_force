@@ -29,7 +29,7 @@ defmodule ExForce.OAuth do
   - `:user_agent`
   """
   def build_client(url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
-    Tesla.build_client([
+    Tesla.client([
       {Tesla.Middleware.BaseUrl, url},
       {Tesla.Middleware.Compression, format: "gzip"},
       Tesla.Middleware.FormUrlencoded,
