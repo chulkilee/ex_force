@@ -245,7 +245,7 @@ defmodule ExForce do
   """
   @spec query(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query(client, soql) do
-    case request(client, method: :get, url: "query", query: [q: soql]) do
+    case request(client, method: :get, url: "query", query: [q: encode_query(soql)]) do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
       {:ok, %Tesla.Env{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -283,7 +283,7 @@ defmodule ExForce do
   """
   @spec query_all(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query_all(client, soql) do
-    case request(client, method: :get, url: "queryAll", query: [q: soql]) do
+    case request(client, method: :get, url: "queryAll", query: [q: encode_query(soql)]) do
       {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
       {:ok, %Tesla.Env{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -344,4 +344,6 @@ defmodule ExForce do
   defp stream_unfold({_client, %QueryResult{records: [], done: true}}), do: nil
 
   defp full_path?(path), do: String.starts_with?(path, "/services/data/v")
+
+  defp encode_query(query), do: URI.encode(query, &(&1 != ?%))
 end
