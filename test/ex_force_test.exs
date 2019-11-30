@@ -404,6 +404,67 @@ defmodule ExForceTest do
               }}
   end
 
+  test "get_sobject_by_relationship/5 - success with multiple results", %{bypass: bypass, client: client} do
+    Bypass.expect_once(
+      bypass,
+      "GET",
+      "/services/data/v40.0/sobjects/Account/foo/Owners",
+      fn conn ->
+        conn
+        |> assert_query_params(%{"fields" => "FirstName,LastName"})
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(200, """
+        {
+          "done": true,
+          "records": [
+            {
+              "attributes": {
+                "type": "User",
+                "url": "/services/data/v40.0/sobjects/Owner/foo"
+              },
+              "FirstName": "first_first_name",
+              "LastName": "first_last_name"
+            },
+            {
+              "attributes": {
+                "type": "User",
+                "url": "/services/data/v40.0/sobjects/Owner/bar"
+              },
+              "FirstName": "second_first_name",
+              "LastName": "second_last_name"
+            }
+          ],
+          "totalSize": 2
+        }
+        """)
+      end
+    )
+
+    assert ExForce.get_sobject_by_relationship(client, "foo", "Account", "Owners", [
+             "FirstName",
+             "LastName"
+           ]) ==
+             {:ok,
+               %ExForce.QueryResult{
+                 done: true,
+                 next_records_url: nil,
+                 records: [
+                   %ExForce.SObject{
+                     id: "foo",
+                     type: "User",
+                     data: %{"FirstName" => "first_first_name", "LastName" => "first_last_name"}
+                   },
+                   %ExForce.SObject{
+                     id: "bar",
+                     type: "User",
+                     data: %{"FirstName" => "second_first_name", "LastName" => "second_last_name"}
+                   }
+                 ],
+                 total_size: 2
+               }
+             }
+  end
+
   test "get_sobject_by_relationship/5 - network error" do
     assert ExForce.get_sobject_by_relationship(
              client_with_econnrefused(),
