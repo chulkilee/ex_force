@@ -175,7 +175,7 @@ defmodule ExForce do
           sobject_name,
           field_name,
           list(field_name)
-        ) :: {:ok, SObject.t()} | {:ok, QueryResult.t()} | {:error, any}
+        ) :: {:ok, SObject.t() | QueryResult.t()} | {:error, any}
   def get_sobject_by_relationship(
         client,
         id,
