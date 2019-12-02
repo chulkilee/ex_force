@@ -188,8 +188,7 @@ defmodule ExForce do
 
   defp do_get_sobject(client, path, fields \\ []) do
     case request(client, method: :get, url: path, query: build_fields_query(fields)) do
-      {:ok, %Tesla.Env{status: 200, body: %{"attributes" => _} = body}} -> {:ok, SObject.build(body)}
-      {:ok, %Tesla.Env{status: 200, body: %{"records" => _} = body}} -> {:ok, build_result_set(body)}
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, SObject.build(body)}
       {:ok, %Tesla.Env{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
