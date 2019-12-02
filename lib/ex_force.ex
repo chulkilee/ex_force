@@ -176,14 +176,15 @@ defmodule ExForce do
           field_name,
           list(field_name)
         ) :: {:ok, SObject.t() | QueryResult.t()} | {:error, any}
-  def get_sobject_by_relationship(
-        client,
-        id,
-        sobject_name,
-        field_name,
-        fields
-      ),
-      do: do_get_sobject(client, "sobjects/#{sobject_name}/#{id}/#{field_name}", fields)
+  def get_sobject_by_relationship(client, id, sobject_name, field_name, fields) do
+    path = "sobjects/#{sobject_name}/#{id}/#{field_name}"
+    case request(client, method: :get, url: path, query: build_fields_query(fields)) do
+      {:ok, %Tesla.Env{status: 200, body: %{"attributes" => _} = body}} -> {:ok, SObject.build(body)}
+      {:ok, %Tesla.Env{status: 200, body: %{"records" => _} = body}} -> {:ok, build_result_set(body)}
+      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
 
   defp do_get_sobject(client, path, fields \\ []) do
     case request(client, method: :get, url: path, query: build_fields_query(fields)) do
