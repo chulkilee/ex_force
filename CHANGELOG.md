@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## 0.3.0 - 2019-12-03
+
+### Changed
+
+- Update tesla dep to `~> 1.3` (#33 by @gabrielpra1)
+
+### Fixed
+
+- Handle multiple results in `get_sobject_by_relationship/5` (#36 by @dirksierd)
+
 ## 0.2.2 - 2018-10-10
 
 ### Fixed
@@ -41,4 +51,4 @@
 
 - Add basic features
 
-[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/chulkilee/ex_force/compare/v0.3.0...HEAD
