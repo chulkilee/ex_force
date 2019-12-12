@@ -2,6 +2,20 @@ defmodule ExForce do
   @moduledoc """
   Simple wrapper for Salesforce REST API.
 
+  ## Installation
+
+  The package can be installed by adding `ex_force` to your list of dependencies in `mix.exs`:
+
+  ```elixir
+  def deps do
+    [
+      {:ex_force, "~> 0.3"}
+    ]
+  end
+  ```
+
+  Check out [Choosing a Tesla Adapter](https://github.com/chulkilee/ex_force/wiki/Choosing-a-Tesla-Adapter).
+
   ## Usage
 
   ```elixir
