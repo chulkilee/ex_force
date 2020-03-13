@@ -1,8 +1,9 @@
-defmodule ExForce.TeslaMiddleware do
+defmodule ExForce.Client.Tesla.Middleware do
   @moduledoc false
 
   @behaviour Tesla.Middleware
 
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     env
     |> apply_url(opts)
