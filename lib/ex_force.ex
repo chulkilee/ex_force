@@ -224,35 +224,6 @@ defmodule ExForce do
     end
   end
 
-   @doc """
-  Use the Composite API to create nested records.
-  This can also be used to create multiple (up to 200) unrelated records of a type.
-  If more than 200 records need to be inserted at once, try using the Bulk API.
-  See [Create Nested Records](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/dome_composite_sobject_tree_create.htm)
-  """
-  @spec create_nested_sobjects(client, sobject_name, map) :: {:ok, any} | {:error, any}
-  def create_nested_sobjects(client, name, attrs) do
-    case Client.request(client, %Request{method: :post, url: "composite/tree/#{name}", body: attrs}) do
-      {:ok, %Response{status: 201, body: body}} -> {:ok, body}
-      {:ok, %Response{body: body}} -> {:error, body}
-      {:error, _} = other -> other
-    end
-  end
-
-  @doc """
-  Uses the Composite API to create multiple requests in a single call.
-  This is typically used to manage dependent requests such as inserting related records without juggling multiple requests.
-  See [Compose Resources](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_composite.htm)
-  """
-  @spec composite(client, map) :: {:ok, any} | {:error, any}
-  def composite(client, attrs) do
-    case Client.request(client, %Request{method: :post, url: "composite", body: attrs}) do
-      {:ok, %Response{status: 201, body: body}} -> {:ok, body}
-      {:ok, %Response{body: body}} -> {:error, body}
-      {:error, _} = other -> other
-    end
-  end
-
   @doc """
   Deletes a SObject.
 
