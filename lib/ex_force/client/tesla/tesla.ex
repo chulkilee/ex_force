@@ -75,19 +75,22 @@ defmodule ExForce.Client.Tesla do
   @impl ExForce.Client
   def request(%Tesla.Client{} = client, %Request{} = request) do
     client
-    |> Tesla.request(to_tesla_request(request))
-    |> cast()
+    |> Tesla.request(cast_tesla_request(request))
+    |> cast_response()
   end
 
-  defp to_tesla_request(%Request{} = request) do
+  defp cast_tesla_request(%Request{} = request) do
     request
-    |> Map.from_struct()
+    |> convert_struct(Tesla.Env)
     |> Map.to_list()
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
 
-  defp cast({:ok, %Tesla.Env{status: status, body: body}}),
-    do: {:ok, %Response{status: status, body: body}}
+  defp convert_struct(%_struct{} = fields, new_struct),
+    do: struct(new_struct, Map.from_struct(fields))
 
-  defp cast({:error, error}), do: {:error, error}
+  defp cast_response({:ok, %Tesla.Env{} = response}),
+    do: {:ok, convert_struct(response, Response)}
+
+  defp cast_response({:error, error}), do: {:error, error}
 end
