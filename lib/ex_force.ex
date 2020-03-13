@@ -42,19 +42,23 @@ defmodule ExForce do
   ```
   """
 
-  alias ExForce.{QueryResult, SObject}
+  alias ExForce.{
+    Client,
+    QueryResult,
+    Request,
+    Response,
+    SObject,
+  }
 
-  import ExForce.Client, only: [request: 2]
-
-  @type client :: ExForce.Client.t()
+  @type client :: Client.t()
   @type sobject_id :: String.t()
   @type sobject_name :: String.t()
   @type field_name :: String.t()
   @type soql :: String.t()
   @type query_id :: String.t()
 
-  @default_api_version "42.0"
-  @default_user_agent "ex_force"
+  defdelegate build_client(instance_url), to: Client
+  defdelegate build_client(instance_url, opts), to: Client
 
   @doc """
   Lists available REST API versions at an instance.
@@ -63,9 +67,9 @@ defmodule ExForce do
   """
   @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
   def versions(instance_url) do
-    case instance_url |> build_client() |> request(method: :get, url: "/services/data") do
-      {:ok, %Tesla.Env{status: 200, body: body}} when is_list(body) -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case instance_url |> Client.build_client() |> Client.request(%Request{method: :get, url: "/services/data"}) do
+      {:ok, %Response{status: 200, body: body}} when is_list(body) -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -77,39 +81,11 @@ defmodule ExForce do
   """
   @spec resources(client, String.t()) :: {:ok, map} | {:error, any}
   def resources(client, version) do
-    case request(client, method: :get, url: "/services/data/v#{version}") do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: "/services/data/v#{version}"}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
-  end
-
-  @doc """
-
-  Options
-
-  - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
-  - `:api_version`: use the given api_version; default: `"#{@default_api_version}"`
-  - `:adapter`: use the given adapter with custom opts; default: `nil`, which causes Tesla to use the default adapter or the one set in config.
-  """
-  def build_client(instance_url_or_map, opts \\ [headers: [{"user-agent", @default_user_agent}]])
-
-  def build_client(%{instance_url: instance_url, access_token: access_token}, opts) do
-    with headers <- Keyword.get(opts, :headers, []),
-         new_headers <- [{"authorization", "Bearer " <> access_token} | headers],
-         new_opts <- Keyword.put(opts, :headers, new_headers) do
-      build_client(instance_url, new_opts)
-    end
-  end
-
-  def build_client(instance_url, opts) when is_binary(instance_url) do
-    Tesla.client([
-      {ExForce.TeslaMiddleware,
-       {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      {Tesla.Middleware.JSON, engine: Jason},
-      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-    ], Keyword.get(opts, :adapter))
   end
 
   @doc """
@@ -119,9 +95,9 @@ defmodule ExForce do
   """
   @spec describe_global(client) :: {:ok, map} | {:error, any}
   def describe_global(client) do
-    case request(client, method: :get, url: "sobjects") do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: "sobjects"}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -133,9 +109,9 @@ defmodule ExForce do
   """
   @spec describe_sobject(client, sobject_name) :: {:ok, map} | {:error, any}
   def describe_sobject(client, name) do
-    case request(client, method: :get, url: "sobjects/#{name}/describe") do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: "sobjects/#{name}/describe"}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -147,11 +123,11 @@ defmodule ExForce do
   """
   @spec basic_info(client, sobject_name) :: {:ok, map} | {:error, any}
   def basic_info(client, name) do
-    case request(client, method: :get, url: "sobjects/#{name}") do
-      {:ok, %Tesla.Env{status: 200, body: %{"recentItems" => recent_items} = body}} ->
+    case Client.request(client, %Request{method: :get, url: "sobjects/#{name}"}) do
+      {:ok, %Response{status: 200, body: %{"recentItems" => recent_items} = body}} ->
         {:ok, Map.put(body, "recentItems", Enum.map(recent_items, &SObject.build/1))}
 
-      {:ok, %Tesla.Env{body: body}} ->
+      {:ok, %Response{body: body}} ->
         {:error, body}
 
       {:error, _} = other ->
@@ -194,14 +170,14 @@ defmodule ExForce do
   def get_sobject_by_relationship(client, id, sobject_name, field_name, fields) do
     path = "sobjects/#{sobject_name}/#{id}/#{field_name}"
 
-    case request(client, method: :get, url: path, query: build_fields_query(fields)) do
-      {:ok, %Tesla.Env{status: 200, body: %{"attributes" => _} = body}} ->
+    case Client.request(client, %Request{method: :get, url: path, query: build_fields_query(fields)}) do
+      {:ok, %Response{status: 200, body: %{"attributes" => _} = body}} ->
         {:ok, SObject.build(body)}
 
-      {:ok, %Tesla.Env{status: 200, body: %{"records" => _} = body}} ->
+      {:ok, %Response{status: 200, body: %{"records" => _} = body}} ->
         {:ok, build_result_set(body)}
 
-      {:ok, %Tesla.Env{body: body}} ->
+      {:ok, %Response{body: body}} ->
         {:error, body}
 
       {:error, _} = other ->
@@ -210,9 +186,9 @@ defmodule ExForce do
   end
 
   defp do_get_sobject(client, path, fields \\ []) do
-    case request(client, method: :get, url: path, query: build_fields_query(fields)) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, SObject.build(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: path, query: build_fields_query(fields)}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, SObject.build(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -227,9 +203,9 @@ defmodule ExForce do
   """
   @spec update_sobject(client, sobject_id, sobject_name, map) :: :ok | {:error, any}
   def update_sobject(client, id, name, attrs) do
-    case request(client, method: :patch, url: "sobjects/#{name}/#{id}", body: attrs) do
-      {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :patch, url: "sobjects/#{name}/#{id}", body: attrs}) do
+      {:ok, %Response{status: 204, body: ""}} -> :ok
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -241,9 +217,38 @@ defmodule ExForce do
   """
   @spec create_sobject(client, sobject_name, map) :: {:ok, sobject_id} | {:error, any}
   def create_sobject(client, name, attrs) do
-    case request(client, method: :post, url: "sobjects/#{name}/", body: attrs) do
-      {:ok, %Tesla.Env{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :post, url: "sobjects/#{name}/", body: attrs}) do
+      {:ok, %Response{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+   @doc """
+  Use the Composite API to create nested records.
+  This can also be used to create multiple (up to 200) unrelated records of a type.
+  If more than 200 records need to be inserted at once, try using the Bulk API.
+  See [Create Nested Records](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/dome_composite_sobject_tree_create.htm)
+  """
+  @spec create_nested_sobjects(client, sobject_name, map) :: {:ok, any} | {:error, any}
+  def create_nested_sobjects(client, name, attrs) do
+    case Client.request(client, %Request{method: :post, url: "composite/tree/#{name}", body: attrs}) do
+      {:ok, %Response{status: 201, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  @doc """
+  Uses the Composite API to create multiple requests in a single call.
+  This is typically used to manage dependent requests such as inserting related records without juggling multiple requests.
+  See [Compose Resources](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_composite.htm)
+  """
+  @spec composite(client, map) :: {:ok, any} | {:error, any}
+  def composite(client, attrs) do
+    case Client.request(client, %Request{method: :post, url: "composite", body: attrs}) do
+      {:ok, %Response{status: 201, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -255,9 +260,9 @@ defmodule ExForce do
   """
   @spec delete_sobject(client, sobject_id, sobject_name) :: :ok | {:error, any}
   def delete_sobject(client, id, name) do
-    case request(client, method: :delete, url: "sobjects/#{name}/#{id}") do
-      {:ok, %Tesla.Env{status: 204, body: ""}} -> :ok
-      {:ok, %Tesla.Env{status: 404, body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :delete, url: "sobjects/#{name}/#{id}"}) do
+      {:ok, %Response{status: 204, body: ""}} -> :ok
+      {:ok, %Response{status: 404, body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -269,9 +274,9 @@ defmodule ExForce do
   """
   @spec query(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query(client, soql) do
-    case request(client, method: :get, url: "query", query: [q: soql]) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: "query", query: [q: soql]}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -293,9 +298,9 @@ defmodule ExForce do
         "query/#{query_id_or_url}"
       end
 
-    case request(client, method: :get, url: path) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: path}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
@@ -307,9 +312,9 @@ defmodule ExForce do
   """
   @spec query_all(client, soql) :: {:ok, QueryResult.t()} | {:error, any}
   def query_all(client, soql) do
-    case request(client, method: :get, url: "queryAll", query: [q: soql]) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, build_result_set(body)}
-      {:ok, %Tesla.Env{body: body}} -> {:error, body}
+    case Client.request(client, %Request{method: :get, url: "queryAll", query: [q: soql]}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, build_result_set(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end

@@ -10,7 +10,14 @@ defmodule ExForce.Mixfile do
       elixir: "~> 1.5",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      aliases: aliases(),
       package: package(),
+      preferred_cli_env: ["test.all": :test],
+
+      # dialyxir
+      dialyzer: [
+        plt_add_apps: [:tesla],
+      ],
 
       # hex
       description: "Simple Elixir wrapper for Salesforce REST API",
@@ -32,14 +39,27 @@ defmodule ExForce.Mixfile do
 
   defp deps do
     [
-      {:tesla, "~> 1.3"},
+      {:tesla, "~> 1.3", optional: true},
       {:jason, "~> 1.0"},
-      {:bypass, "~> 1.0", only: :test},
-      {:credo, "~> 1.1", only: :dev, runtime: false},
-      {:dialyxir, "~> 0.5", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.12", only: :test},
+      # Docs
+      {:inch_ex, "~> 2.0.0", only: :dev},
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
-      {:inch_ex, "~> 2.0.0", only: :dev}
+      # Lint
+      {:credo, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
+      # Testing
+      {:bypass, "~> 1.0", only: :test},
+      {:excoveralls, "~> 0.12", only: :test},
+    ]
+  end
+
+  defp aliases do
+    [
+      "test.all": [
+        "credo --strict",
+        "dialyzer",
+        "test"
+      ],
     ]
   end
 
