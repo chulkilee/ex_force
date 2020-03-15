@@ -56,6 +56,7 @@ defmodule ExForce do
   @type field_name :: String.t()
   @type soql :: String.t()
   @type query_id :: String.t()
+  @type sobject :: %{id: String.t(), attributes: %{type: String.t()}}
 
   defdelegate build_client(instance_url), to: Client
   defdelegate build_client(instance_url, opts), to: Client
@@ -205,6 +206,23 @@ defmodule ExForce do
   def update_sobject(client, id, name, attrs) do
     case Client.request(client, %Request{method: :patch, url: "sobjects/#{name}/#{id}", body: attrs}) do
       {:ok, %Response{status: 204, body: ""}} -> :ok
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  @doc """
+  Use the Composite API to update multiple records (up to 200) in one call, returning a list of SaveResult objects.
+  You can choose whether to roll back the entire request when an error occurs.
+  If more than 200 records need to be updated at once, try using the Bulk API.
+  See [Update Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_update.htm)
+  """
+  @spec update_sobjects(client, records :: list(sobject), all_or_none :: boolean) :: {:ok, any} | {:error, any}
+  def update_sobjects(client, records, all_or_none \\ false) do
+    body = %{records: records, allOrNone: all_or_none}
+
+    case Client.request(client, %Request{method: :patch, url: "/composite/sobjects", body: body}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end

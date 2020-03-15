@@ -570,6 +570,34 @@ defmodule ExForceTest do
              {:error, :econnrefused}
   end
 
+  test "update_sobjects/3 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "PATCH", "/composite/sobjects", fn conn ->
+      conn
+      |> assert_json_body(%{
+        "allOrNone" => false,
+        "records" => [
+          %{"attributes" => %{"type" => "Account"}, "email" => "myemail@email.com", "id" => "001D000000IqhSLIAZ"}
+        ]
+      })
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      {
+        "id": "001D000000IqhSLIAZ",
+        "errors": [],
+        "success": true,
+        "warnings": []
+      }
+      """)
+    end)
+
+    records = [
+      %{id: "001D000000IqhSLIAZ", attributes: %{type: "Account"}, email: "myemail@email.com"}
+    ]
+
+    assert ExForce.update_sobjects(client, records) ==
+      {:ok, %{"id" => "001D000000IqhSLIAZ", "errors" => [], "warnings" => [], "success" => true}}
+  end
+
   test "delete_sobject/3 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       Conn.resp(conn, 204, "")
