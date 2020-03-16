@@ -15,7 +15,7 @@ defmodule ExForce.Client.Tesla do
 
   alias ExForce.{
     Request,
-    Response,
+    Response
   }
 
   @default_api_version "42.0"
@@ -42,13 +42,16 @@ defmodule ExForce.Client.Tesla do
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
-    Tesla.client([
-      {ExForce.Client.Tesla.Middleware,
-       {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      {Tesla.Middleware.JSON, engine: Jason},
-      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-    ], Keyword.get(opts, :adapter))
+    Tesla.client(
+      [
+        {ExForce.Client.Tesla.Middleware,
+         {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
+        {Tesla.Middleware.Compression, format: "gzip"},
+        {Tesla.Middleware.JSON, engine: Jason},
+        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+      ],
+      Keyword.get(opts, :adapter)
+    )
   end
 
   @doc """
@@ -60,13 +63,16 @@ defmodule ExForce.Client.Tesla do
   """
   @impl ExForce.Client
   def build_oauth_client(url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
-    Tesla.client([
-      {Tesla.Middleware.BaseUrl, url},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      Tesla.Middleware.FormUrlencoded,
-      {Tesla.Middleware.DecodeJson, engine: Jason},
-      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-    ], Keyword.get(opts, :adapter))
+    Tesla.client(
+      [
+        {Tesla.Middleware.BaseUrl, url},
+        {Tesla.Middleware.Compression, format: "gzip"},
+        Tesla.Middleware.FormUrlencoded,
+        {Tesla.Middleware.DecodeJson, engine: Jason},
+        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+      ],
+      Keyword.get(opts, :adapter)
+    )
   end
 
   @doc """

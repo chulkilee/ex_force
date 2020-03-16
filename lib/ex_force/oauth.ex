@@ -14,7 +14,7 @@ defmodule ExForce.OAuth do
     Client,
     OAuthResponse,
     Request,
-    Response,
+    Response
   }
 
   @type username :: String.t()
@@ -106,7 +106,11 @@ defmodule ExForce.OAuth do
   def get_token(client, payload) do
     client_secret = Keyword.fetch!(payload, :client_secret)
 
-    case Client.request(client, %Request{method: :post, url: "/services/oauth2/token", body: payload}) do
+    case Client.request(client, %Request{
+           method: :post,
+           url: "/services/oauth2/token",
+           body: payload
+         }) do
       {:ok,
        %Response{
          status: 200,

@@ -13,7 +13,7 @@ defmodule ExForce.Client do
 
   alias ExForce.{
     Request,
-    Response,
+    Response
   }
 
   @type client :: any()

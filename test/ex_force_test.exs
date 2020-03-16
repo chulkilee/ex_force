@@ -6,8 +6,9 @@ defmodule ExForceTest do
     Client,
     QueryResult,
     Request,
-    SObject,
+    SObject
   }
+
   alias Plug.Conn
 
   @unreachable_url "http://257.0.0.0:0"
@@ -409,7 +410,10 @@ defmodule ExForceTest do
               }}
   end
 
-  test "get_sobject_by_relationship/5 - success with multiple results", %{bypass: bypass, client: client} do
+  test "get_sobject_by_relationship/5 - success with multiple results", %{
+    bypass: bypass,
+    client: client
+  } do
     Bypass.expect_once(
       bypass,
       "GET",
@@ -450,24 +454,23 @@ defmodule ExForceTest do
              "LastName"
            ]) ==
              {:ok,
-               %ExForce.QueryResult{
-                 done: true,
-                 next_records_url: nil,
-                 records: [
-                   %ExForce.SObject{
-                     id: "foo",
-                     type: "User",
-                     data: %{"FirstName" => "first_first_name", "LastName" => "first_last_name"}
-                   },
-                   %ExForce.SObject{
-                     id: "bar",
-                     type: "User",
-                     data: %{"FirstName" => "second_first_name", "LastName" => "second_last_name"}
-                   }
-                 ],
-                 total_size: 2
-               }
-             }
+              %ExForce.QueryResult{
+                done: true,
+                next_records_url: nil,
+                records: [
+                  %ExForce.SObject{
+                    id: "foo",
+                    type: "User",
+                    data: %{"FirstName" => "first_first_name", "LastName" => "first_last_name"}
+                  },
+                  %ExForce.SObject{
+                    id: "bar",
+                    type: "User",
+                    data: %{"FirstName" => "second_first_name", "LastName" => "second_last_name"}
+                  }
+                ],
+                total_size: 2
+              }}
   end
 
   test "get_sobject_by_relationship/5 - network error" do
@@ -576,7 +579,11 @@ defmodule ExForceTest do
       |> assert_json_body(%{
         "allOrNone" => false,
         "records" => [
-          %{"attributes" => %{"type" => "Account"}, "email" => "myemail@email.com", "id" => "001D000000IqhSLIAZ"}
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "myemail@email.com",
+            "id" => "001D000000IqhSLIAZ"
+          }
         ]
       })
       |> Conn.put_resp_content_type("application/json")
@@ -595,7 +602,15 @@ defmodule ExForceTest do
     ]
 
     assert ExForce.update_sobjects(client, records) ==
-      {:ok, [%{"id" => "001D000000IqhSLIAZ", "errors" => [], "warnings" => [], "success" => true}]}
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "errors" => [],
+                  "warnings" => [],
+                  "success" => true
+                }
+              ]}
   end
 
   test "delete_sobject/3 - success", %{bypass: bypass, client: client} do

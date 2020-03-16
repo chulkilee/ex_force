@@ -5,14 +5,14 @@ defmodule ExForce.Response do
 
   @type param() :: binary() | [{binary() | atom(), param()}]
   @type t :: %__MODULE__{
-    body: any(),
-    headers: [{binary(), binary()}],
-    method: :head | :get | :delete | :trace | :options | :post | :put | :patch,
-    opts: [any()],
-    query: [{binary() | atom(), param()}],
-    status: integer() | nil,
-    url: binary(),
-  }
+          body: any(),
+          headers: [{binary(), binary()}],
+          method: :head | :get | :delete | :trace | :options | :post | :put | :patch,
+          opts: [any()],
+          query: [{binary() | atom(), param()}],
+          status: integer() | nil,
+          url: binary()
+        }
 
   defstruct [
     :body,
@@ -21,6 +21,6 @@ defmodule ExForce.Response do
     :opts,
     :query,
     :status,
-    :url,
+    :url
   ]
 end

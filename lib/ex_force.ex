@@ -49,7 +49,7 @@ defmodule ExForce do
     QueryResult,
     Request,
     Response,
-    SObject,
+    SObject
   }
 
   @type client :: Client.t()
@@ -70,7 +70,9 @@ defmodule ExForce do
   """
   @spec versions(String.t()) :: {:ok, list(map)} | {:error, any}
   def versions(instance_url) do
-    case instance_url |> Client.build_client() |> Client.request(%Request{method: :get, url: "/services/data"}) do
+    case instance_url
+         |> Client.build_client()
+         |> Client.request(%Request{method: :get, url: "/services/data"}) do
       {:ok, %Response{status: 200, body: body}} when is_list(body) -> {:ok, body}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -173,7 +175,11 @@ defmodule ExForce do
   def get_sobject_by_relationship(client, id, sobject_name, field_name, fields) do
     path = "sobjects/#{sobject_name}/#{id}/#{field_name}"
 
-    case Client.request(client, %Request{method: :get, url: path, query: build_fields_query(fields)}) do
+    case Client.request(client, %Request{
+           method: :get,
+           url: path,
+           query: build_fields_query(fields)
+         }) do
       {:ok, %Response{status: 200, body: %{"attributes" => _} = body}} ->
         {:ok, SObject.build(body)}
 
@@ -189,7 +195,11 @@ defmodule ExForce do
   end
 
   defp do_get_sobject(client, path, fields \\ []) do
-    case Client.request(client, %Request{method: :get, url: path, query: build_fields_query(fields)}) do
+    case Client.request(client, %Request{
+           method: :get,
+           url: path,
+           query: build_fields_query(fields)
+         }) do
       {:ok, %Response{status: 200, body: body}} -> {:ok, SObject.build(body)}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -206,7 +216,11 @@ defmodule ExForce do
   """
   @spec update_sobject(client, sobject_id, sobject_name, map) :: :ok | {:error, any}
   def update_sobject(client, id, name, attrs) do
-    case Client.request(client, %Request{method: :patch, url: "sobjects/#{name}/#{id}", body: attrs}) do
+    case Client.request(client, %Request{
+           method: :patch,
+           url: "sobjects/#{name}/#{id}",
+           body: attrs
+         }) do
       {:ok, %Response{status: 204, body: ""}} -> :ok
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -219,7 +233,8 @@ defmodule ExForce do
   If more than 200 records need to be updated at once, try using the Bulk API.
   See [Update Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_update.htm)
   """
-  @spec update_sobjects(client, records :: list(sobject), all_or_none :: boolean) :: {:ok, any} | {:error, any}
+  @spec update_sobjects(client, records :: list(sobject), all_or_none :: boolean) ::
+          {:ok, any} | {:error, any}
   def update_sobjects(client, records, all_or_none \\ false) do
     body = %{records: records, allOrNone: all_or_none}
 

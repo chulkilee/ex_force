@@ -16,7 +16,7 @@ defmodule ExForce.Mixfile do
 
       # dialyxir
       dialyzer: [
-        plt_add_apps: [:tesla],
+        plt_add_apps: [:tesla]
       ],
 
       # hex
@@ -49,7 +49,7 @@ defmodule ExForce.Mixfile do
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
       # Testing
       {:bypass, "~> 1.0", only: :test},
-      {:excoveralls, "~> 0.12", only: :test},
+      {:excoveralls, "~> 0.12", only: :test}
     ]
   end
 
@@ -59,7 +59,7 @@ defmodule ExForce.Mixfile do
         "credo --strict",
         "dialyzer",
         "test"
-      ],
+      ]
     ]
   end
 
