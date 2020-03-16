@@ -37,5 +37,5 @@ defmodule ExForce.Client do
 
   def request(client, request), do: adapter().request(client, request)
 
-  defp adapter, do: Application.get_env(:ex_force, :client)
+  defp adapter, do: Application.get_env(:ex_force, :client, ExForce.Client.Tesla)
 end
