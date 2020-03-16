@@ -4,12 +4,14 @@ defmodule ExForce do
 
   ## Installation
 
-  The package can be installed by adding `ex_force` to your list of dependencies in `mix.exs`:
+  The package can be installed by adding `ex_force` and `tesla` (optional if you implement your own ExForce.Client) to your list of dependencies in `mix.exs`:
 
   ```elixir
   def deps do
     [
-      {:ex_force, "~> 0.3"}
+      {:ex_force, "~> 0.3"},
+      # Optional if you implement your own ExForce.Client
+      {:tesla, "~> 1.3"},
     ]
   end
   ```
