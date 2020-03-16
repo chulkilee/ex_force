@@ -571,7 +571,7 @@ defmodule ExForceTest do
   end
 
   test "update_sobjects/3 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "PATCH", "/composite/sobjects", fn conn ->
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/composite/sobjects", fn conn ->
       conn
       |> assert_json_body(%{
         "allOrNone" => false,
@@ -581,12 +581,12 @@ defmodule ExForceTest do
       })
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
-      {
+      [{
         "id": "001D000000IqhSLIAZ",
         "errors": [],
         "success": true,
         "warnings": []
-      }
+      }]
       """)
     end)
 
@@ -595,7 +595,7 @@ defmodule ExForceTest do
     ]
 
     assert ExForce.update_sobjects(client, records) ==
-      {:ok, %{"id" => "001D000000IqhSLIAZ", "errors" => [], "warnings" => [], "success" => true}}
+      {:ok, [%{"id" => "001D000000IqhSLIAZ", "errors" => [], "warnings" => [], "success" => true}]}
   end
 
   test "delete_sobject/3 - success", %{bypass: bypass, client: client} do

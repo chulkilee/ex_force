@@ -221,7 +221,7 @@ defmodule ExForce do
   def update_sobjects(client, records, all_or_none \\ false) do
     body = %{records: records, allOrNone: all_or_none}
 
-    case Client.request(client, %Request{method: :patch, url: "/composite/sobjects", body: body}) do
+    case Client.request(client, %Request{method: :patch, url: "composite/sobjects", body: body}) do
       {:ok, %Response{status: 200, body: body}} -> {:ok, body}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
