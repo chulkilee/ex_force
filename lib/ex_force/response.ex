@@ -1,6 +1,6 @@
 defmodule ExForce.Response do
   @moduledoc """
-  Represents an ExForce API response.
+  Represents an API response.
   """
 
   @type param() :: binary() | [{binary() | atom(), param()}]
