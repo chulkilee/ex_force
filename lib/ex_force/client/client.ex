@@ -16,18 +16,17 @@ defmodule ExForce.Client do
     Response
   }
 
-  @type client :: any()
-  @type t :: client
+  @type t :: any()
   @type opts :: Keyword.t()
   @type instance_url :: map() | String.t()
 
-  @callback build_client(instance_url) :: client
-  @callback build_client(instance_url, opts) :: client
+  @callback build_client(instance_url) :: t()
+  @callback build_client(instance_url, opts) :: t()
 
-  @callback build_oauth_client(instance_url) :: client
-  @callback build_oauth_client(instance_url, opts) :: client
+  @callback build_oauth_client(instance_url) :: t()
+  @callback build_oauth_client(instance_url, opts) :: t()
 
-  @callback request(client, Request.t()) :: {:ok, Response.t()} | {:error, any()}
+  @callback request(t(), Request.t()) :: {:ok, Response.t()} | {:error, any()}
 
   def build_client(instance_url), do: adapter().build_client(instance_url)
   def build_client(instance_url, opts), do: adapter().build_client(instance_url, opts)
