@@ -325,4 +325,22 @@ defmodule ExForce.OAuthTest do
              password: "a0!#$%-_=+<>"
            ) == {:error, :econnrefused}
   end
+
+  test "build_client/2 works" do
+    opts = [headers: [{"user-agent", "agent"}]]
+    client = OAuth.build_client(@unreachable_url, opts)
+
+    assert client === %Tesla.Client{
+             adapter: nil,
+             fun: nil,
+             post: [],
+             pre: [
+               {Tesla.Middleware.BaseUrl, :call, ["http://257.0.0.0:0"]},
+               {Tesla.Middleware.Compression, :call, [[format: "gzip"]]},
+               {Tesla.Middleware.FormUrlencoded, :call, [[]]},
+               {Tesla.Middleware.DecodeJson, :call, [[engine: Jason]]},
+               {Tesla.Middleware.Headers, :call, [[{"user-agent", "agent"}]]}
+             ]
+           }
+  end
 end

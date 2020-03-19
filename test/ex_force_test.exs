@@ -621,6 +621,7 @@ defmodule ExForceTest do
     assert ExForce.update_sobjects(client_with_econnrefused(), records) ==
              {:error, :econnrefused}
   end
+
   test "delete_sobject/3 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       Conn.resp(conn, 204, "")
