@@ -39,7 +39,7 @@ defmodule ExForce.Mixfile do
 
   defp deps do
     [
-      {:tesla, "~> 1.3", optional: true},
+      {:tesla, "~> 1.3"},
       {:jason, "~> 1.0"},
       # Docs
       {:inch_ex, "~> 2.0.0", only: :dev},
