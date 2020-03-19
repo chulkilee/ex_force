@@ -613,6 +613,14 @@ defmodule ExForceTest do
               ]}
   end
 
+  test "update_sobjects/3 - network error" do
+    records = [
+      %{id: "001D000000IqhSLIAZ", attributes: %{type: "Account"}, email: "myemail@email.com"}
+    ]
+
+    assert ExForce.update_sobjects(client_with_econnrefused(), records) ==
+             {:error, :econnrefused}
+  end
   test "delete_sobject/3 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
       Conn.resp(conn, 204, "")
