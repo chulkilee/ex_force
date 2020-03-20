@@ -10,33 +10,20 @@ defmodule ExForce.OAuth do
   - `refresh_token`: [Understanding the OAuth Refresh Token Process](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_understanding_refresh_token_oauth.htm)
   """
 
-  alias ExForce.OAuthResponse
-
-  import ExForce.Client, only: [request: 2]
+  alias ExForce.{
+    Client,
+    OAuthResponse,
+    Request,
+    Response
+  }
 
   @type username :: String.t()
   @type password :: String.t()
   @type code :: String.t()
   @type redirect_uri :: String.t()
 
-  @default_user_agent "ex_force"
-
-  @doc """
-  Returns client for OAuth functions
-
-  ### Options
-
-  - `:user_agent`
-  """
-  def build_client(url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
-    Tesla.client([
-      {Tesla.Middleware.BaseUrl, url},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      Tesla.Middleware.FormUrlencoded,
-      {Tesla.Middleware.DecodeJson, engine: Jason},
-      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-    ])
-  end
+  defdelegate build_client(instance_url), to: Client, as: :build_oauth_client
+  defdelegate build_client(instance_url, opts), to: Client, as: :build_oauth_client
 
   @doc """
   Returns the authorize url based on the configuration.
@@ -119,9 +106,13 @@ defmodule ExForce.OAuth do
   def get_token(client, payload) do
     client_secret = Keyword.fetch!(payload, :client_secret)
 
-    case request(client, method: :post, url: "/services/oauth2/token", body: payload) do
+    case Client.request(client, %Request{
+           method: :post,
+           url: "/services/oauth2/token",
+           body: payload
+         }) do
       {:ok,
-       %Tesla.Env{
+       %Response{
          status: 200,
          body:
            map = %{
@@ -147,7 +138,7 @@ defmodule ExForce.OAuth do
           client_secret
         )
 
-      {:ok, %Tesla.Env{body: body}} ->
+      {:ok, %Response{body: body}} ->
         {:error, body}
 
       {:error, _} = other ->
