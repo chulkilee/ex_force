@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.4.0 - 2020-03-24
+
+### Changed
+
+- Implement own structs and composite/sobjects request (#40 by @rschef)
+
 ## 0.3.0 - 2019-12-03
 
 ### Changed
