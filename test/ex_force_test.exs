@@ -573,6 +573,193 @@ defmodule ExForceTest do
              {:error, :econnrefused}
   end
 
+  test "create_sobjects/3 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> assert_json_body(%{
+        "allOrNone" => false,
+        "records" => [
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "myemail@email.com"
+          }
+        ]
+      })
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      [{
+        "id": "001D000000IqhSLIAZ",
+        "errors": [],
+        "success": true,
+        "warnings": []
+      }]
+      """)
+    end)
+
+    records = [
+      %{attributes: %{type: "Account"}, email: "myemail@email.com"}
+    ]
+
+    assert ExForce.create_sobjects(client, records) ==
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "errors" => [],
+                  "warnings" => [],
+                  "success" => true
+                }
+              ]}
+  end
+
+  test "create_sobjects/3 - partial success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> assert_json_body(%{
+        "allOrNone" => false,
+        "records" => [
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "myemail@email.com"
+          },
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "fooemail@email.com"
+          }
+        ]
+      })
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+        [
+          {
+            "id": "001D000000IqhSLIAZ",
+            "errors": [],
+            "success": true
+          },
+          {
+            "success": false,
+            "errors": [
+              {
+                "statusCode": "DUPLICATES_DETECTED",
+                "message": "Use one of these records?",
+                "fields": []
+              }
+            ]
+          }
+        ]
+      """)
+    end)
+
+    records = [
+      %{attributes: %{type: "Account"}, email: "myemail@email.com"},
+      %{attributes: %{type: "Account"}, email: "fooemail@email.com"}
+    ]
+
+    assert ExForce.create_sobjects(client, records) ==
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "errors" => [],
+                  "success" => true
+                },
+                %{
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "DUPLICATES_DETECTED",
+                      "message" => "Use one of these records?",
+                      "fields" => []
+                    }
+                  ]
+                }
+              ]}
+  end
+
+  test "create_sobjects/3 - allOrNone rollback failure", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> assert_json_body(%{
+        "allOrNone" => false,
+        "records" => [
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "myemail@email.com"
+          },
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "fooemail@email.com"
+          }
+        ]
+      })
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+        [
+          {
+            "success": false,
+            "errors": [
+              {
+                "statusCode" : "ALL_OR_NONE_OPERATION_ROLLED_BACK",
+                "message" : "Record rolled back because not all records were valid and the request was using AllOrNone header",
+                "fields" : []
+              }
+            ]
+          },
+          {
+            "success": false,
+            "errors": [
+              {
+                "statusCode": "DUPLICATES_DETECTED",
+                "message": "Use one of these records?",
+                "fields": []
+              }
+            ]
+          }
+        ]
+      """)
+    end)
+
+    records = [
+      %{attributes: %{type: "Account"}, email: "myemail@email.com"},
+      %{attributes: %{type: "Account"}, email: "fooemail@email.com"}
+    ]
+
+    assert ExForce.create_sobjects(client, records) ==
+             {:ok,
+              [
+                %{
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "ALL_OR_NONE_OPERATION_ROLLED_BACK",
+                      "message" =>
+                        "Record rolled back because not all records were valid and the request was using AllOrNone header",
+                      "fields" => []
+                    }
+                  ]
+                },
+                %{
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "DUPLICATES_DETECTED",
+                      "message" => "Use one of these records?",
+                      "fields" => []
+                    }
+                  ]
+                }
+              ]}
+  end
+
+  test "create_sobjects/3 - network error" do
+    records = [
+      %{attributes: %{type: "Account"}, email: "myemail@email.com"}
+    ]
+
+    assert ExForce.create_sobjects(client_with_econnrefused(), records) ==
+             {:error, :econnrefused}
+  end
+
   test "update_sobjects/3 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/composite/sobjects", fn conn ->
       conn
@@ -609,6 +796,155 @@ defmodule ExForceTest do
                   "errors" => [],
                   "warnings" => [],
                   "success" => true
+                }
+              ]}
+  end
+
+  test "update_sobjects/3 - partial success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> assert_json_body(%{
+        "allOrNone" => false,
+        "records" => [
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "myemail@email.com",
+            "id" => "001D000000IqhSLIAZ"
+          },
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "fooemail@email.com",
+            "id" => "foo"
+          }
+        ]
+      })
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+        [
+          {
+            "id": "001D000000IqhSLIAZ",
+            "errors": [],
+            "success": true
+          },
+          {
+            "success": false,
+            "errors": [
+              {
+                "statusCode": "MALFORMED_ID",
+                "message": "Contact ID: id value of incorrect type: foo",
+                "fields": [
+                  "Id"
+                ]
+              }
+            ]
+          }
+        ]
+      """)
+    end)
+
+    records = [
+      %{id: "001D000000IqhSLIAZ", attributes: %{type: "Account"}, email: "myemail@email.com"},
+      %{id: "foo", attributes: %{type: "Account"}, email: "fooemail@email.com"}
+    ]
+
+    assert ExForce.update_sobjects(client, records) ==
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "errors" => [],
+                  "success" => true
+                },
+                %{
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "MALFORMED_ID",
+                      "message" => "Contact ID: id value of incorrect type: foo",
+                      "fields" => ["Id"]
+                    }
+                  ]
+                }
+              ]}
+  end
+
+  test "update_sobjects/3 - allOrNone rollback failure", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> assert_json_body(%{
+        "allOrNone" => false,
+        "records" => [
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "myemail@email.com",
+            "id" => "001D000000IqhSLIAZ"
+          },
+          %{
+            "attributes" => %{"type" => "Account"},
+            "email" => "fooemail@email.com",
+            "id" => "foo"
+          }
+        ]
+      })
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+        [
+          {
+            "id": "001D000000IqhSLIAZ",
+            "success": false,
+            "errors": [
+              {
+                "statusCode" : "ALL_OR_NONE_OPERATION_ROLLED_BACK",
+                "message" : "Record rolled back because not all records were valid and the request was using AllOrNone header",
+                "fields" : []
+              }
+            ]
+          },
+          {
+            "success": false,
+            "errors": [
+              {
+                "statusCode": "MALFORMED_ID",
+                "message": "Contact ID: id value of incorrect type: foo",
+                "fields": [
+                  "Id"
+                ]
+              }
+            ]
+          }
+        ]
+      """)
+    end)
+
+    records = [
+      %{id: "001D000000IqhSLIAZ", attributes: %{type: "Account"}, email: "myemail@email.com"},
+      %{id: "foo", attributes: %{type: "Account"}, email: "fooemail@email.com"}
+    ]
+
+    assert ExForce.update_sobjects(client, records) ==
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "ALL_OR_NONE_OPERATION_ROLLED_BACK",
+                      "message" =>
+                        "Record rolled back because not all records were valid and the request was using AllOrNone header",
+                      "fields" => []
+                    }
+                  ]
+                },
+                %{
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "MALFORMED_ID",
+                      "message" => "Contact ID: id value of incorrect type: foo",
+                      "fields" => ["Id"]
+                    }
+                  ]
                 }
               ]}
   end
@@ -657,6 +993,99 @@ defmodule ExForceTest do
 
   test "delete_sobject/3 - network error" do
     assert ExForce.delete_sobject(client_with_econnrefused(), "foo", "Account") ==
+             {:error, :econnrefused}
+  end
+
+  test "delete_sobjects/3 - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      [
+        {
+          "id": "001D000000IqhSLIAZ",
+          "success": true,
+          "errors": []
+        },
+        {
+          "id": "foo",
+          "success": true,
+          "errors": []
+        }
+      ]
+      """)
+    end)
+
+    assert ExForce.delete_sobjects(client, ["001D000000IqhSLIAZ", "foo"]) ==
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "success" => true,
+                  "errors" => []
+                },
+                %{
+                  "id" => "foo",
+                  "success" => true,
+                  "errors" => []
+                }
+              ]}
+  end
+
+  test "delete_sobjects/3 - partial failure", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/composite/sobjects", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      [
+        {
+          "id": "001D000000IqhSLIAZ",
+          "success": true,
+          "errors": []
+        },
+        {
+          "success": false,
+          "errors": [
+            {
+              "statusCode": "NOT_FOUND",
+              "message": "Provided external ID field does not exist or is not accessible: foo",
+              "fields": []
+            }
+          ]
+        }
+      ]
+      """)
+    end)
+
+    assert ExForce.delete_sobjects(client, ["001D000000IqhSLIAZ", "foo"]) ==
+             {:ok,
+              [
+                %{
+                  "id" => "001D000000IqhSLIAZ",
+                  "success" => true,
+                  "errors" => []
+                },
+                %{
+                  "success" => false,
+                  "errors" => [
+                    %{
+                      "statusCode" => "NOT_FOUND",
+                      "message" =>
+                        "Provided external ID field does not exist or is not accessible: foo",
+                      "fields" => []
+                    }
+                  ]
+                }
+              ]}
+  end
+
+  test "delete_sobjects/3 - network error" do
+    ids = [
+      "001D000000IqhSLIAZ",
+      "foo"
+    ]
+
+    assert ExForce.delete_sobjects(client_with_econnrefused(), ids) ==
              {:error, :econnrefused}
   end
 
