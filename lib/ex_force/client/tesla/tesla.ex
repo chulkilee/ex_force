@@ -29,6 +29,7 @@ defmodule ExForce.Client.Tesla do
   - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
   - `:api_version`: use the given api_version; default: `"#{@default_api_version}"`
   - `:adapter`: use the given adapter with custom opts; default: `nil`, which causes Tesla to use the default adapter or the one set in config.
+  - `:middleware`: set additional middleware to use in the Tesla Client
   """
   @impl ExForce.Client
   def build_client(instance_url_or_map, opts \\ [headers: [{"user-agent", @default_user_agent}]])
@@ -42,16 +43,18 @@ defmodule ExForce.Client.Tesla do
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
-    Tesla.client(
-      [
-        {ExForce.Client.Tesla.Middleware,
-         {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
-        {Tesla.Middleware.Compression, format: "gzip"},
-        {Tesla.Middleware.JSON, engine: Jason},
-        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
-      ],
-      Keyword.get(opts, :adapter)
-    )
+    additional_middleware = Keyword.get(opts, :middleware, [])
+
+    middleware = [
+      {ExForce.Client.Tesla.Middleware,
+       {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
+      additional_middleware,
+      {Tesla.Middleware.Compression, format: "gzip"},
+      {Tesla.Middleware.JSON, engine: Jason},
+      {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+    ] |> List.flatten
+
+    Tesla.client(middleware, Keyword.get(opts, :adapter))
   end
 
   @doc """
