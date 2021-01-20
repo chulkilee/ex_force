@@ -48,7 +48,7 @@ defmodule ExForce.Mixfile do
       licenses: ["MIT"],
       links: %{
         "GitHub" => "https://github.com/chulkilee/ex_force",
-        "Changelog" => "https://github.com/chulkilee/ex_force/blob/master/CHANGELOG.md"
+        "Changelog" => "https://github.com/chulkilee/ex_force/blob/main/CHANGELOG.md"
       },
       maintainers: ["Chulki Lee"]
     ]
