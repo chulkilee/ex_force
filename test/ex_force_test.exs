@@ -100,6 +100,7 @@ defmodule ExForceTest do
   test "build_client/2 - url - api_version - opts", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/services/data/v12345.0/foo", fn conn ->
       conn
+      |> assert_req_header("user-agent", ["ex_force"])
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, ~w({"hello": "world"}))
     end)

@@ -31,14 +31,13 @@ defmodule ExForce.Client.Tesla do
   - `:adapter`: use the given adapter with custom opts; default: `nil`, which causes Tesla to use the default adapter or the one set in config.
   """
   @impl ExForce.Client
-  def build_client(context, opts \\ [headers: [{"user-agent", @default_user_agent}]])
+  def build_client(context, opts \\ [])
 
   def build_client(%{instance_url: instance_url, access_token: access_token}, opts) do
-    with headers <- Keyword.get(opts, :headers, []),
-         new_headers <- [{"authorization", "Bearer " <> access_token} | headers],
-         new_opts <- Keyword.put(opts, :headers, new_headers) do
-      build_client(instance_url, new_opts)
-    end
+    new_headers = [{"authorization", "Bearer " <> access_token} | get_headers(opts)]
+    new_opts = Keyword.put(opts, :headers, new_headers)
+
+    build_client(instance_url, new_opts)
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
@@ -48,11 +47,13 @@ defmodule ExForce.Client.Tesla do
          {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
         {Tesla.Middleware.Compression, format: "gzip"},
         {Tesla.Middleware.JSON, engine: Jason},
-        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+        {Tesla.Middleware.Headers, get_headers(opts)}
       ],
       Keyword.get(opts, :adapter)
     )
   end
+
+  defp get_headers(opts), do: Keyword.get(opts, :headers, [{"user-agent", @default_user_agent}])
 
   @doc """
   Returns a `Tesla` client for `ExForce.OAuth` functions
@@ -62,14 +63,14 @@ defmodule ExForce.Client.Tesla do
   - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
   """
   @impl ExForce.Client
-  def build_oauth_client(instance_url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
+  def build_oauth_client(instance_url, opts \\ []) do
     Tesla.client(
       [
         {Tesla.Middleware.BaseUrl, instance_url},
         {Tesla.Middleware.Compression, format: "gzip"},
         Tesla.Middleware.FormUrlencoded,
         {Tesla.Middleware.DecodeJson, engine: Jason},
-        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+        {Tesla.Middleware.Headers, get_headers(opts)}
       ],
       Keyword.get(opts, :adapter)
     )
