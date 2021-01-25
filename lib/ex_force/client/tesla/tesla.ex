@@ -28,7 +28,7 @@ defmodule ExForce.Client.Tesla do
 
   - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
   - `:api_version`: use the given api_version; default: `"#{@default_api_version}"`
-  - `:adapter`: use the given adapter with custom opts; default: `nil`, which causes Tesla to use the default adapter or the one set in config.
+  - `:adapter`: use the given adapter with custom opts; default: `nil`, which makes `Tesla` to use the default adapter or the one set in config.
   """
   @impl ExForce.Client
   def build_client(context, opts \\ [])
@@ -61,6 +61,7 @@ defmodule ExForce.Client.Tesla do
   ### Options
 
   - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
+  - `:adapter`: use the given adapter with custom opts; default: `nil`, which makes `Tesla` to use the default adapter or the one set in config.
   """
   @impl ExForce.Client
   def build_oauth_client(instance_url, opts \\ []) do
