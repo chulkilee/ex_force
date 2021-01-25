@@ -226,9 +226,12 @@ defmodule ExForce do
   end
 
   @doc """
-  Use the Composite API to update multiple records (up to 200) in one call, returning a list of SaveResult objects.
+  Updates multiple SObjects using the Composite API.
+
+  It uses the Composite API to update multiple records (up to 200) in one call, returning a list of SaveResult objects.
   You can choose whether to roll back the entire request when an error occurs.
   If more than 200 records need to be updated at once, try using the Bulk API.
+
   See [Update Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_update.htm)
   """
   @spec update_sobjects(client, records :: list(sobject), all_or_none :: boolean) ::
@@ -272,7 +275,7 @@ defmodule ExForce do
   end
 
   @doc """
-  Excute the SOQL query and get the result of it.
+  Excutes the SOQL query and get the result of it.
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
@@ -289,7 +292,7 @@ defmodule ExForce do
   def query_stream(client, soql), do: start_query_stream(client, &query/2, soql)
 
   @doc """
-  Retrieve additional query results for the specified query ID.
+  Retrieves additional query results for the specified query ID.
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
@@ -310,7 +313,7 @@ defmodule ExForce do
   end
 
   @doc """
-  Excute the SOQL query and get the result of it, including deleted or archived objects.
+  Excutes the SOQL query and get the result of it, including deleted or archived objects.
 
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
   """
