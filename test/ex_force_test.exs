@@ -844,6 +844,72 @@ defmodule ExForceTest do
     assert map_sobject_id(stream) == ["account1", "account2", "account3", "account4"]
   end
 
+  test "query_stream/2 - failure at the beginning", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(500, """
+      {
+        "foo": "bar"
+      }
+      """)
+    end)
+
+    stream = ExForce.query_stream(client, "SELECT Name FROM Account")
+
+    assert Enum.to_list(stream) == [{:error, %{"foo" => "bar"}}]
+  end
+
+  test "query_stream/2 - failure in the middle", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+      conn
+      |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      {
+        "totalSize": 4,
+        "done": false,
+        "nextRecordsUrl": "/services/data/v40.0/query/queryid-200",
+        "records": [
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account1"
+            },
+            "Name": "account1"
+          },
+          {
+            "attributes": {
+              "type": "Account",
+              "url": "/services/data/v40.0/sobjects/Account/account2"
+            },
+            "Name": "account2"
+          }
+        ]
+      }
+      """)
+    end)
+
+    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(500, """
+      {
+        "foo": "bar"
+      }
+      """)
+    end)
+
+    stream = ExForce.query_stream(client, "SELECT Name FROM Account")
+
+    assert Enum.to_list(stream) == [
+             %ExForce.SObject{data: %{"Name" => "account1"}, id: "account1", type: "Account"},
+             %ExForce.SObject{data: %{"Name" => "account2"}, id: "account2", type: "Account"},
+             {:error, %{"foo" => "bar"}}
+           ]
+  end
+
   test "query_retrieve/2 - success with query id", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
       conn
