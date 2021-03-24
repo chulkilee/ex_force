@@ -351,8 +351,13 @@ defmodule ExForce do
           soql
         ) :: Enumerable.t()
   defp start_query_stream(client, func, soql) do
-    {:ok, qr} = func.(client, soql)
-    stream_query_result(client, qr)
+    case func.(client, soql) do
+      {:ok, qr} ->
+        stream_query_result(client, qr)
+
+      {:error, _} = other ->
+        other
+    end
   end
 
   @doc """
@@ -370,8 +375,13 @@ defmodule ExForce do
          client,
          %QueryResult{records: [], done: false, next_records_url: next_records_url}
        }) do
-    {:ok, %QueryResult{records: [h | tail]} = qr} = query_retrieve(client, next_records_url)
-    {h, {client, %QueryResult{qr | records: tail}}}
+    case query_retrieve(client, next_records_url) do
+      {:ok, %QueryResult{records: [h | tail]} = qr} ->
+        {h, {client, %QueryResult{qr | records: tail}}}
+
+      {:error, _} = other ->
+        other
+    end
   end
 
   defp stream_unfold({_client, %QueryResult{records: [], done: true}}), do: nil
