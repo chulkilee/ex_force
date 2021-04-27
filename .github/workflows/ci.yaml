@@ -1,0 +1,30 @@
+name: CI
+on: [pull_request, push]
+jobs:
+  test:
+    name: test
+    strategy:
+      matrix:
+        otp: ['23.2.2', '22.3.4.14']
+        elixir: ['1.11.2', '1.10.4']
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-elixir@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+          experimental-otp: true
+      - uses: actions/cache@v2
+        with:
+          path: |
+            _build
+            deps
+          key: ${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.lock') }}
+      - run: mix deps.get
+      - run: mix format --check-formatted
+      - run: mix coveralls.github
+        env:
+          MIX_ENV: test
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: mix inch.report

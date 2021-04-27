@@ -2,13 +2,14 @@
 
 ## Code formatting
 
-Run `mix format` from the master branch of [elixir](https://github.com/elixir-lang/elixir).
+Run `mix format` and `mix credo`.
 
 ## Running tests
 
 ```sh
 mix test
 ```
+
 ## Building docs
 
 ```sh

@@ -35,11 +35,11 @@ defmodule ExForce.Mixfile do
       {:tesla, "~> 1.3"},
       {:jason, "~> 1.0"},
       {:bypass, "~> 1.0", only: :test},
-      {:credo, "~> 1.1", only: :dev, runtime: false},
-      {:dialyxir, "~> 0.5", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.12", only: :test},
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
-      {:inch_ex, "~> 2.0.0", only: :dev}
+      {:credo, "~> 1.5", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.13", only: :test},
+      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
+      {:inch_ex, "~> 2.0", only: :dev}
     ]
   end
 
