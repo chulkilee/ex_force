@@ -228,8 +228,15 @@ defmodule ExForce do
   @doc """
   Use the Composite API to update multiple records (up to 200) in one call, returning a list of SaveResult objects.
   You can choose whether to roll back the entire request when an error occurs.
-  If more than 200 records need to be updated at once, try using the Bulk API.
-  See [Update Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_update.htm)
+
+  The list can contain objects of different types, including custom objects.
+  Set the type attribute for each object, but don’t set the id field for any object.
+
+  While the response code from Salesforce is often a 200, there may be failures mixed with
+  success records so use your own filter and retry logic for error_handling.
+
+  If more than 200 records need to be updated at once, try using the Bulk API:
+  see [Update Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_update.htm)
   """
   @spec update_sobjects(client, records :: list(sobject), all_or_none :: boolean) ::
           {:ok, any} | {:error, any}
@@ -258,6 +265,31 @@ defmodule ExForce do
   end
 
   @doc """
+  Use the Composite API to create multiple records (up to 200) in one call, returning a list of SaveResult objects.
+  You can choose whether to roll back the entire request when an error occurs.
+
+  The list can contain objects of different types, including custom objects.
+  Set the type attribute for each object, but don’t set the id field for any object.
+
+  While the response code from Salesforce is often a 200, there may be failures mixed with
+  success records so use your own filter and retry logic for error_handling.
+
+  If more than 200 records need to be created at once, try using the Bulk API:
+  see [Create Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_create.htm)
+  """
+  @spec create_sobjects(client, records :: list(sobject), all_or_none :: boolean) ::
+          {:ok, any} | {:error, any}
+  def create_sobjects(client, records, all_or_none \\ false) do
+    body = %{records: records, allOrNone: all_or_none}
+
+    case Client.request(client, %Request{method: :post, url: "composite/sobjects", body: body}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  @doc """
   Deletes a SObject.
 
   [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_retrieve.htm)
@@ -267,6 +299,32 @@ defmodule ExForce do
     case Client.request(client, %Request{method: :delete, url: "sobjects/#{name}/#{id}"}) do
       {:ok, %Response{status: 204, body: ""}} -> :ok
       {:ok, %Response{status: 404, body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  @doc """
+  Use the Composite API to delete multiple records (up to 200) in one call, returning a list of DeleteResult objects.
+  You can choose whether to roll back the entire request when an error occurs.
+
+  The IDs can belong to different object types, including custom objects.
+
+  While the response code from Salesforce is often a 200, there may be failures mixed with
+  success records so use your own filter and retry logic for error_handling.
+
+  If more than 200 records need to be updated at once, try using the Bulk API:
+  see [Delete Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_delete.htm)
+  """
+  @spec delete_sobjects(client, records :: list(sobject), all_or_none :: boolean) ::
+          {:ok, any} | {:error, any}
+  def delete_sobjects(client, ids, all_or_none \\ false)
+
+  def delete_sobjects(client, ids, all_or_none) do
+    params = "ids=#{Enum.join(ids, ",")}&allOrNone=#{all_or_none}"
+
+    case Client.request(client, %Request{method: :delete, url: "composite/sobjects?#{params}"}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end
