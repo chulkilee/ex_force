@@ -1,10 +1,10 @@
 defmodule ExForce.Client.Tesla do
   @moduledoc """
-  HTTP Client for Salesforce REST API using Tesla.
+  HTTP Client for Salesforce REST API using `Tesla`.
 
   ## Adapter
 
-  To use different Tesla adapter, set it via Mix configuration.
+  To use a different `Tesla` adapter, set it via Mix configuration.
 
   ```elixir
   config :tesla, ExForce.Client.Tesla, adapter: Tesla.Adapter.Hackney
@@ -22,23 +22,22 @@ defmodule ExForce.Client.Tesla do
   @default_user_agent "ex_force"
 
   @doc """
-  Returns Tesla client for ExForce functions
+  Returns a `Tesla` client for `ExForce` functions
 
-  Options
+  ### Options
 
   - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
   - `:api_version`: use the given api_version; default: `"#{@default_api_version}"`
-  - `:adapter`: use the given adapter with custom opts; default: `nil`, which causes Tesla to use the default adapter or the one set in config.
+  - `:adapter`: use the given adapter with custom opts; default: `nil`, which makes `Tesla` to use the default adapter or the one set in config.
   """
   @impl ExForce.Client
-  def build_client(instance_url_or_map, opts \\ [headers: [{"user-agent", @default_user_agent}]])
+  def build_client(context, opts \\ [])
 
   def build_client(%{instance_url: instance_url, access_token: access_token}, opts) do
-    with headers <- Keyword.get(opts, :headers, []),
-         new_headers <- [{"authorization", "Bearer " <> access_token} | headers],
-         new_opts <- Keyword.put(opts, :headers, new_headers) do
-      build_client(instance_url, new_opts)
-    end
+    new_headers = [{"authorization", "Bearer " <> access_token} | get_headers(opts)]
+    new_opts = Keyword.put(opts, :headers, new_headers)
+
+    build_client(instance_url, new_opts)
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
@@ -48,28 +47,31 @@ defmodule ExForce.Client.Tesla do
          {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
         {Tesla.Middleware.Compression, format: "gzip"},
         {Tesla.Middleware.JSON, engine: Jason},
-        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+        {Tesla.Middleware.Headers, get_headers(opts)}
       ],
       Keyword.get(opts, :adapter)
     )
   end
 
+  defp get_headers(opts), do: Keyword.get(opts, :headers, [{"user-agent", @default_user_agent}])
+
   @doc """
-  Returns client for ExForce.OAuth functions
+  Returns a `Tesla` client for `ExForce.OAuth` functions
 
   ### Options
 
-  - `:user_agent`
+  - `:headers`: set additional headers; default: `[{"user-agent", "#{@default_user_agent}"}]`
+  - `:adapter`: use the given adapter with custom opts; default: `nil`, which makes `Tesla` to use the default adapter or the one set in config.
   """
   @impl ExForce.Client
-  def build_oauth_client(url, opts \\ [headers: [{"user-agent", @default_user_agent}]]) do
+  def build_oauth_client(instance_url, opts \\ []) do
     Tesla.client(
       [
-        {Tesla.Middleware.BaseUrl, url},
+        {Tesla.Middleware.BaseUrl, instance_url},
         {Tesla.Middleware.Compression, format: "gzip"},
         Tesla.Middleware.FormUrlencoded,
         {Tesla.Middleware.DecodeJson, engine: Jason},
-        {Tesla.Middleware.Headers, Keyword.get(opts, :headers, [])}
+        {Tesla.Middleware.Headers, get_headers(opts)}
       ],
       Keyword.get(opts, :adapter)
     )

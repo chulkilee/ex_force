@@ -34,12 +34,12 @@ defmodule ExForce.Mixfile do
     [
       {:tesla, "~> 1.3"},
       {:jason, "~> 1.0"},
-      {:bypass, "~> 1.0", only: :test},
-      {:credo, "~> 1.5", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.13", only: :test},
-      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
-      {:inch_ex, "~> 2.0", only: :dev}
+      {:bypass, "~> 2.1", only: :test},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.14", only: :test},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
+      {:inch_ex, "~> 2.0", only: [:dev, :test]}
     ]
   end
 
@@ -48,7 +48,7 @@ defmodule ExForce.Mixfile do
       licenses: ["MIT"],
       links: %{
         "GitHub" => "https://github.com/chulkilee/ex_force",
-        "Changelog" => "https://github.com/chulkilee/ex_force/blob/master/CHANGELOG.md"
+        "Changelog" => "https://github.com/chulkilee/ex_force/blob/main/CHANGELOG.md"
       },
       maintainers: ["Chulki Lee"]
     ]

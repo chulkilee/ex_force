@@ -40,6 +40,8 @@ defmodule ExForce do
     |> Stream.take(50)
     |> Enum.to_list()
   ```
+
+  Note that streams emit `ExForce.SObject` or an error tuple.
   """
 
   alias ExForce.{
@@ -226,9 +228,12 @@ defmodule ExForce do
   end
 
   @doc """
-  Use the Composite API to update multiple records (up to 200) in one call, returning a list of SaveResult objects.
+  Updates multiple SObjects using the Composite API.
+
+  It uses the Composite API to update multiple records (up to 200) in one call, returning a list of SaveResult objects.
   You can choose whether to roll back the entire request when an error occurs.
   If more than 200 records need to be updated at once, try using the Bulk API.
+
   See [Update Multiple Records with Fewer Round-Trips](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_composite_sobjects_collections_update.htm)
   """
   @spec update_sobjects(client, records :: list(sobject), all_or_none :: boolean) ::
@@ -272,7 +277,7 @@ defmodule ExForce do
   end
 
   @doc """
-  Excute the SOQL query and get the result of it.
+  Excutes the SOQL query and get the result of it.
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
@@ -289,7 +294,7 @@ defmodule ExForce do
   def query_stream(client, soql), do: start_query_stream(client, &query/2, soql)
 
   @doc """
-  Retrieve additional query results for the specified query ID.
+  Retrieves additional query results for the specified query ID.
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
@@ -310,7 +315,7 @@ defmodule ExForce do
   end
 
   @doc """
-  Excute the SOQL query and get the result of it, including deleted or archived objects.
+  Excutes the SOQL query and get the result of it, including deleted or archived objects.
 
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
   """
@@ -347,12 +352,16 @@ defmodule ExForce do
 
   @spec start_query_stream(
           client,
-          (client, soql -> {:ok, QueryResult.t()} | any),
+          (client, soql -> {:ok, QueryResult.t()} | {:error, any}),
           soql
         ) :: Enumerable.t()
+
   defp start_query_stream(client, func, soql) do
-    {:ok, qr} = func.(client, soql)
-    stream_query_result(client, qr)
+    Stream.resource(
+      fn -> {client, func.(client, soql)} end,
+      &stream_next/1,
+      fn _acc -> nil end
+    )
   end
 
   @doc """
@@ -360,21 +369,27 @@ defmodule ExForce do
   """
   @spec stream_query_result(client, QueryResult.t()) :: Enumerable.t()
   def stream_query_result(client, %QueryResult{} = qr) do
-    Stream.unfold({client, qr}, &stream_unfold/1)
+    Stream.resource(
+      fn -> {client, {:ok, qr}} end,
+      &stream_next/1,
+      fn _acc -> nil end
+    )
   end
 
-  defp stream_unfold({client, %QueryResult{records: [h | tail]} = qr}),
-    do: {h, {client, %QueryResult{qr | records: tail}}}
+  defp stream_next({client, :halt}), do: {:halt, client}
 
-  defp stream_unfold({
-         client,
-         %QueryResult{records: [], done: false, next_records_url: next_records_url}
-       }) do
-    {:ok, %QueryResult{records: [h | tail]} = qr} = query_retrieve(client, next_records_url)
-    {h, {client, %QueryResult{qr | records: tail}}}
-  end
+  defp stream_next({client, {:error, _} = error_tuple}), do: {[error_tuple], {client, :halt}}
 
-  defp stream_unfold({_client, %QueryResult{records: [], done: true}}), do: nil
+  defp stream_next({client, {:ok, %QueryResult{records: records, done: true}}}),
+    do: {records, {client, :halt}}
+
+  defp stream_next(
+         {client, {:ok, %QueryResult{records: records, done: false, next_records_url: url}}}
+       ),
+       do: {records, {client, {:retrieve, url}}}
+
+  defp stream_next({client, {:retrieve, next_records_url}}),
+    do: {[], {client, query_retrieve(client, next_records_url)}}
 
   defp full_path?(path), do: String.starts_with?(path, "/services/data/v")
 end
