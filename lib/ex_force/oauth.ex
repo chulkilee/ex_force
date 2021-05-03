@@ -163,7 +163,13 @@ defmodule ExForce.OAuth do
       |> DateTime.to_unix(:millisecond)
       |> Integer.to_string()
 
-    :crypto.mac(:hmac, :sha256, client_secret, id <> issued_at_raw)
+    crypto_args = [:sha256, client_secret, id <> issued_at_raw]
+
+    if function_exported?(:crypto, :mac, 4) do
+      apply(:crypto, :mac, [:hmac] ++ crypto_args)
+    else
+      apply(:crypto, :hmac, crypto_args)
+    end
     |> Base.encode64()
   end
 end
