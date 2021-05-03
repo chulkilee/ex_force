@@ -5,7 +5,7 @@ jobs:
     name: test
     strategy:
       matrix:
-        otp: ['23.2.2', '22.3.4.14']
+        otp: ['23.2.2', '22.3.4.14', '21.3.8.22']
         elixir: ['1.11.2', '1.10.4']
     runs-on: ubuntu-20.04
     steps:
