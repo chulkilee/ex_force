@@ -5,8 +5,39 @@ jobs:
     name: test
     strategy:
       matrix:
-        otp: ['23.2.3', '22.3.4.15']
-        elixir: ['1.11.3', '1.10.4']
+        include:
+          - elixir: '1.12.0'
+            otp: '24.0.1'
+          - elixir: '1.12.0'
+            otp: '23.3.4.1'
+          - elixir: '1.12.0'
+            otp: '22.3.4.19'
+          - elixir: '1.11.4'
+            otp: '24.0.1'
+          - elixir: '1.11.4'
+            otp: '23.3.4.1'
+          - elixir: '1.11.4'
+            otp: '22.3.4.19'
+          - elixir: '1.11.4'
+            otp: '21.3.8.23'
+          - elixir: '1.10.4'
+            otp: '23.3.4.1'
+          - elixir: '1.10.4'
+            otp: '22.3.4.19'
+          - elixir: '1.10.4'
+            otp: '21.3.8.23'
+          - elixir: '1.9.4'
+            otp: '22.3.4.19'
+          - elixir: '1.9.4'
+            otp: '21.3.8.23'
+          # - elixir: '1.9.4'
+          #   otp: '20.3.8.26'
+          - elixir: '1.8.2'
+            otp: '22.3.4.19'
+          - elixir: '1.8.2'
+            otp: '21.3.8.23'
+          # - elixir: '1.8.2'
+          #   otp: '20.3.8.26'
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
