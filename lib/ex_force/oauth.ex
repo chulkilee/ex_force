@@ -163,8 +163,15 @@ defmodule ExForce.OAuth do
       |> DateTime.to_unix(:millisecond)
       |> Integer.to_string()
 
-    :sha256
-    |> :crypto.hmac(client_secret, id <> issued_at_raw)
+    hmac_fun(client_secret, id <> issued_at_raw)
     |> Base.encode64()
+  end
+
+  # :crypto.mac/4 was defined in OTP 22 and :crypto.hmac/3 was removed in OTP 24,
+  # this ensures backwards compatibility between erlang versions
+  if Code.ensure_loaded?(:crypto) and function_exported?(:crypto, :mac, 4) do
+    defp hmac_fun(key, data), do: :crypto.mac(:hmac, :sha256, key, data)
+  else
+    defp hmac_fun(key, data), do: :crypto.hmac(:sha256, key, data)
   end
 end
