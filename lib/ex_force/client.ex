@@ -16,7 +16,7 @@ defmodule ExForce.Client do
     Response
   }
 
-  @type t :: module
+  @type t :: any
   @type opts :: Keyword.t()
   @type instance_url :: String.t()
   @type context :: instance_url | %{instance_url: instance_url, access_token: String.t()}
