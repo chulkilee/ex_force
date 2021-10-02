@@ -18,7 +18,7 @@ defmodule ExForceTest do
          client <-
            ExForce.build_client(
              %{instance_url: bypass_url(bypass), access_token: "foo"},
-             api_version: "40.0"
+             api_version: "53.0"
            ) do
       {:ok, bypass: bypass, client: client}
     end
@@ -169,7 +169,7 @@ defmodule ExForceTest do
   end
 
   test "describe_global/1 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/sobjects", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
@@ -181,7 +181,7 @@ defmodule ExForceTest do
             "activateable": false,
             "name": "Account",
             "urls": {
-              "sobject": "/services/data/v40.0/sobjects/Account"
+              "sobject": "/services/data/v53.0/sobjects/Account"
             }
           }
         ]
@@ -198,7 +198,7 @@ defmodule ExForceTest do
                   %{
                     "activateable" => false,
                     "name" => "Account",
-                    "urls" => %{"sobject" => "/services/data/v40.0/sobjects/Account"}
+                    "urls" => %{"sobject" => "/services/data/v53.0/sobjects/Account"}
                   }
                 ]
               }}
@@ -209,7 +209,7 @@ defmodule ExForceTest do
   end
 
   test "describe_sobject/2 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/describe", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/sobjects/Account/describe", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
@@ -230,7 +230,7 @@ defmodule ExForceTest do
   end
 
   test "basic_info/2 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/sobjects/Account", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
@@ -242,7 +242,7 @@ defmodule ExForceTest do
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/foo"
+              "url": "/services/data/v53.0/sobjects/Account/foo"
             },
             "Id": "foo",
             "Name": "name"
@@ -267,14 +267,14 @@ defmodule ExForceTest do
   end
 
   test "get_sobject/4 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/sobjects/Account/foo", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
       {
         "attributes": {
           "type": "Account",
-          "url": "/services/data/v40.0/sobjects/Account/foo"
+          "url": "/services/data/v53.0/sobjects/Account/foo"
         },
         "Id": "foo",
         "Name": "name"
@@ -287,7 +287,7 @@ defmodule ExForceTest do
   end
 
   test "get_sobject/4 - success with fields", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/sobjects/Account/foo", fn conn ->
       conn
       |> assert_query_params(%{"fields" => "Name,Site"})
       |> Conn.put_resp_content_type("application/json")
@@ -295,7 +295,7 @@ defmodule ExForceTest do
       {
         "attributes": {
           "type": "Account",
-          "url": "/services/data/v40.0/sobjects/Account/foo"
+          "url": "/services/data/v53.0/sobjects/Account/foo"
         },
         "Id": "foo",
         "Name": "name",
@@ -322,7 +322,7 @@ defmodule ExForceTest do
     Bypass.expect_once(
       bypass,
       "GET",
-      "/services/data/v40.0/sobjects/Account/Foo__c/foo%20bar",
+      "/services/data/v53.0/sobjects/Account/Foo__c/foo%20bar",
       fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
@@ -330,7 +330,7 @@ defmodule ExForceTest do
         {
           "attributes": {
             "type": "Account",
-            "url": "/services/data/v40.0/sobjects/Account/foo"
+            "url": "/services/data/v53.0/sobjects/Account/foo"
           },
           "Id": "foo",
           "Name": "name"
@@ -356,7 +356,7 @@ defmodule ExForceTest do
     Bypass.expect_once(
       bypass,
       "GET",
-      "/services/data/v40.0/sobjects/Account/foo/Owner",
+      "/services/data/v53.0/sobjects/Account/foo/Owner",
       fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
@@ -364,7 +364,7 @@ defmodule ExForceTest do
         {
           "attributes": {
             "type": "User",
-            "url": "/services/data/v40.0/sobjects/Owner/bar"
+            "url": "/services/data/v53.0/sobjects/Owner/bar"
           },
           "Id": "bar",
           "Name": "name"
@@ -381,7 +381,7 @@ defmodule ExForceTest do
     Bypass.expect_once(
       bypass,
       "GET",
-      "/services/data/v40.0/sobjects/Account/foo/Owner",
+      "/services/data/v53.0/sobjects/Account/foo/Owner",
       fn conn ->
         conn
         |> assert_query_params(%{"fields" => "FirstName,LastName"})
@@ -390,7 +390,7 @@ defmodule ExForceTest do
         {
           "attributes": {
             "type": "User",
-            "url": "/services/data/v40.0/sobjects/Owner/bar"
+            "url": "/services/data/v53.0/sobjects/Owner/bar"
           },
           "FirstName": "first_name",
           "LastName": "last_name"
@@ -418,7 +418,7 @@ defmodule ExForceTest do
     Bypass.expect_once(
       bypass,
       "GET",
-      "/services/data/v40.0/sobjects/Account/foo/Owners",
+      "/services/data/v53.0/sobjects/Account/foo/Owners",
       fn conn ->
         conn
         |> assert_query_params(%{"fields" => "FirstName,LastName"})
@@ -430,7 +430,7 @@ defmodule ExForceTest do
             {
               "attributes": {
                 "type": "User",
-                "url": "/services/data/v40.0/sobjects/Owner/foo"
+                "url": "/services/data/v53.0/sobjects/Owner/foo"
               },
               "FirstName": "first_first_name",
               "LastName": "first_last_name"
@@ -438,7 +438,7 @@ defmodule ExForceTest do
             {
               "attributes": {
                 "type": "User",
-                "url": "/services/data/v40.0/sobjects/Owner/bar"
+                "url": "/services/data/v53.0/sobjects/Owner/bar"
               },
               "FirstName": "second_first_name",
               "LastName": "second_last_name"
@@ -485,7 +485,7 @@ defmodule ExForceTest do
   end
 
   test "create_sobject/3 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
+    Bypass.expect_once(bypass, "POST", "/services/data/v53.0/sobjects/Account/", fn conn ->
       conn
       |> assert_json_body(%{"FirstName" => "first_name"})
       |> Conn.put_resp_content_type("application/json")
@@ -504,7 +504,7 @@ defmodule ExForceTest do
   end
 
   test "create_sobject/3 - failure", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "POST", "/services/data/v40.0/sobjects/Account/", fn conn ->
+    Bypass.expect_once(bypass, "POST", "/services/data/v53.0/sobjects/Account/", fn conn ->
       conn
       |> assert_json_body(%{"FirstName" => "first_name"})
       |> Conn.put_resp_content_type("application/json")
@@ -535,7 +535,7 @@ defmodule ExForceTest do
   end
 
   test "update_sobject/4 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v53.0/sobjects/Account/foo", fn conn ->
       conn
       |> assert_json_body(%{"FirstName" => "first_name"})
       |> Conn.resp(204, "")
@@ -545,7 +545,7 @@ defmodule ExForceTest do
   end
 
   test "update_sobject/4 - failure", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v53.0/sobjects/Account/foo", fn conn ->
       conn
       |> assert_json_body(%{"x" => "foo"})
       |> Conn.put_resp_content_type("application/json")
@@ -575,7 +575,7 @@ defmodule ExForceTest do
   end
 
   test "update_sobjects/3 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "PATCH", "/services/data/v40.0/composite/sobjects", fn conn ->
+    Bypass.expect_once(bypass, "PATCH", "/services/data/v53.0/composite/sobjects", fn conn ->
       conn
       |> assert_json_body(%{
         "allOrNone" => false,
@@ -624,7 +624,7 @@ defmodule ExForceTest do
   end
 
   test "delete_sobject/3 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+    Bypass.expect_once(bypass, "DELETE", "/services/data/v53.0/sobjects/Account/foo", fn conn ->
       Conn.resp(conn, 204, "")
     end)
 
@@ -632,7 +632,7 @@ defmodule ExForceTest do
   end
 
   test "delete_sobject/3 - failure", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "DELETE", "/services/data/v40.0/sobjects/Account/foo", fn conn ->
+    Bypass.expect_once(bypass, "DELETE", "/services/data/v53.0/sobjects/Account/foo", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(404, """
@@ -662,7 +662,7 @@ defmodule ExForceTest do
   end
 
   test "query/2 - success - sobjects", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"})
       |> Conn.put_resp_content_type("application/json")
@@ -674,13 +674,13 @@ defmodule ExForceTest do
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/foo"
+              "url": "/services/data/v53.0/sobjects/Account/foo"
             },
             "Name": "account name",
             "Owner": {
               "attributes": {
                 "type": "User",
-                "url": "/services/data/v40.0/sobjects/User/bar"
+                "url": "/services/data/v53.0/sobjects/User/bar"
               },
               "Name": "user name"
             }
@@ -714,7 +714,7 @@ defmodule ExForceTest do
   end
 
   test "query/2 - success - sobjects with next url", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
       |> Conn.put_resp_content_type("application/json")
@@ -722,12 +722,12 @@ defmodule ExForceTest do
       {
         "totalSize": 500,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-2000",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-2000",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/foo"
+              "url": "/services/data/v53.0/sobjects/Account/foo"
             },
             "Name": "account name"
           }
@@ -740,7 +740,7 @@ defmodule ExForceTest do
              {:ok,
               %QueryResult{
                 done: false,
-                next_records_url: "/services/data/v40.0/query/queryid-2000",
+                next_records_url: "/services/data/v53.0/query/queryid-2000",
                 records: [
                   %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
                 ],
@@ -749,7 +749,7 @@ defmodule ExForceTest do
   end
 
   test "query/2 - success - aggregate", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT COUNT(Id) count_id FROM Account"})
       |> Conn.put_resp_content_type("application/json")
@@ -785,7 +785,7 @@ defmodule ExForceTest do
   end
 
   test "query_stream/2 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
       |> Conn.put_resp_content_type("application/json")
@@ -793,19 +793,19 @@ defmodule ExForceTest do
       {
         "totalSize": 4,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-200",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-200",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account1"
+              "url": "/services/data/v53.0/sobjects/Account/account1"
             },
             "Name": "account1"
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account2"
+              "url": "/services/data/v53.0/sobjects/Account/account2"
             },
             "Name": "account2"
           }
@@ -814,7 +814,7 @@ defmodule ExForceTest do
       """)
     end)
 
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-200", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
@@ -825,13 +825,13 @@ defmodule ExForceTest do
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account3"
+              "url": "/services/data/v53.0/sobjects/Account/account3"
             }
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account4"
+              "url": "/services/data/v53.0/sobjects/Account/account4"
             }
           }
         ]
@@ -845,7 +845,7 @@ defmodule ExForceTest do
   end
 
   test "query_stream/2 - failure at the beginning", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
       |> Conn.put_resp_content_type("application/json")
@@ -862,7 +862,7 @@ defmodule ExForceTest do
   end
 
   test "query_stream/2 - failure in the middle", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
       |> Conn.put_resp_content_type("application/json")
@@ -870,19 +870,19 @@ defmodule ExForceTest do
       {
         "totalSize": 4,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-200",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-200",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account1"
+              "url": "/services/data/v53.0/sobjects/Account/account1"
             },
             "Name": "account1"
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account2"
+              "url": "/services/data/v53.0/sobjects/Account/account2"
             },
             "Name": "account2"
           }
@@ -891,7 +891,7 @@ defmodule ExForceTest do
       """)
     end)
 
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-200", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(500, """
@@ -911,19 +911,19 @@ defmodule ExForceTest do
   end
 
   test "query_retrieve/2 - success with query id", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-200", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
       {
         "totalSize": 500,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-400",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-400",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/foo"
+              "url": "/services/data/v53.0/sobjects/Account/foo"
             },
             "Name": "account name"
           }
@@ -936,7 +936,7 @@ defmodule ExForceTest do
              {:ok,
               %QueryResult{
                 done: false,
-                next_records_url: "/services/data/v40.0/query/queryid-400",
+                next_records_url: "/services/data/v53.0/query/queryid-400",
                 records: [
                   %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
                 ],
@@ -945,19 +945,19 @@ defmodule ExForceTest do
   end
 
   test "query_retrieve/2 - success with next url", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-200", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
       {
         "totalSize": 500,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-400",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-400",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/foo"
+              "url": "/services/data/v53.0/sobjects/Account/foo"
             },
             "Name": "account name"
           }
@@ -966,11 +966,11 @@ defmodule ExForceTest do
       """)
     end)
 
-    assert ExForce.query_retrieve(client, "/services/data/v40.0/query/queryid-200") ==
+    assert ExForce.query_retrieve(client, "/services/data/v53.0/query/queryid-200") ==
              {:ok,
               %QueryResult{
                 done: false,
-                next_records_url: "/services/data/v40.0/query/queryid-400",
+                next_records_url: "/services/data/v53.0/query/queryid-400",
                 records: [
                   %SObject{id: "foo", type: "Account", data: %{"Name" => "account name"}}
                 ],
@@ -981,12 +981,12 @@ defmodule ExForceTest do
   test "query_retrieve/2 - network error" do
     assert ExForce.query_retrieve(
              client_with_econnrefused(),
-             "/services/data/v40.0/query/queryid-200"
+             "/services/data/v53.0/query/queryid-200"
            ) == {:error, :econnrefused}
   end
 
   test "query_all/2 - success - sobjects", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/queryAll", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name, Owner.Name FROM Account LIMIT 1"})
       |> Conn.put_resp_content_type("application/json")
@@ -998,13 +998,13 @@ defmodule ExForceTest do
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/foo"
+              "url": "/services/data/v53.0/sobjects/Account/foo"
             },
             "Name": "account name",
             "Owner": {
               "attributes": {
                 "type": "User",
-                "url": "/services/data/v40.0/sobjects/User/bar"
+                "url": "/services/data/v53.0/sobjects/User/bar"
               },
               "Name": "user name"
             }
@@ -1045,7 +1045,7 @@ defmodule ExForceTest do
   end
 
   test "query_all_stream/2 - success", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/queryAll", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/queryAll", fn conn ->
       conn
       |> assert_query_params(%{"q" => "SELECT Name FROM Account"})
       |> Conn.put_resp_content_type("application/json")
@@ -1053,19 +1053,19 @@ defmodule ExForceTest do
       {
         "totalSize": 4,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-200",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-200",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account1"
+              "url": "/services/data/v53.0/sobjects/Account/account1"
             },
             "Name": "account1"
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account2"
+              "url": "/services/data/v53.0/sobjects/Account/account2"
             },
             "Name": "account2"
           }
@@ -1074,7 +1074,7 @@ defmodule ExForceTest do
       """)
     end)
 
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-200", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
@@ -1085,13 +1085,13 @@ defmodule ExForceTest do
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account3"
+              "url": "/services/data/v53.0/sobjects/Account/account3"
             }
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account4"
+              "url": "/services/data/v53.0/sobjects/Account/account4"
             }
           }
         ]
@@ -1130,25 +1130,25 @@ defmodule ExForceTest do
   end
 
   test "stream_query_result/2 - two pages", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-200", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-200", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
       {
         "totalSize": 6,
         "done": false,
-        "nextRecordsUrl": "/services/data/v40.0/query/queryid-400",
+        "nextRecordsUrl": "/services/data/v53.0/query/queryid-400",
         "records": [
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account3"
+              "url": "/services/data/v53.0/sobjects/Account/account3"
             }
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account4"
+              "url": "/services/data/v53.0/sobjects/Account/account4"
             }
           }
         ]
@@ -1156,7 +1156,7 @@ defmodule ExForceTest do
       """)
     end)
 
-    Bypass.expect_once(bypass, "GET", "/services/data/v40.0/query/queryid-400", fn conn ->
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/query/queryid-400", fn conn ->
       conn
       |> Conn.put_resp_content_type("application/json")
       |> Conn.resp(200, """
@@ -1167,13 +1167,13 @@ defmodule ExForceTest do
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account5"
+              "url": "/services/data/v53.0/sobjects/Account/account5"
             }
           },
           {
             "attributes": {
               "type": "Account",
-              "url": "/services/data/v40.0/sobjects/Account/account6"
+              "url": "/services/data/v53.0/sobjects/Account/account6"
             }
           }
         ]
@@ -1187,7 +1187,7 @@ defmodule ExForceTest do
         %SObject{id: "account2"}
       ],
       done: false,
-      next_records_url: "/services/data/v40.0/query/queryid-200"
+      next_records_url: "/services/data/v53.0/query/queryid-200"
     }
 
     stream = ExForce.stream_query_result(client, initial)
