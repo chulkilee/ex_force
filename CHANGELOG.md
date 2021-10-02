@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.4.1 - 2021-10-02
+
+### Fixed
+
+- Fix incorrect `Client.t` type (#58 by @LeoLeiteSC)
+
 ## 0.4.0 - 2020-03-24
 
 ### Changed
