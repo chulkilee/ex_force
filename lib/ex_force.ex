@@ -59,6 +59,7 @@ defmodule ExForce do
   @type soql :: String.t()
   @type query_id :: String.t()
   @type sobject :: %{id: String.t(), attributes: %{type: String.t()}}
+  @type method :: Atom.t()
 
   defdelegate build_client(instance_url), to: Client
   defdelegate build_client(instance_url, opts), to: Client
@@ -161,6 +162,30 @@ defmodule ExForce do
       do_get_sobject(client, "sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}")
 
   @doc """
+  Makes a request to a SObject based on the value of a specified extneral ID field. Works similarly to get_sobject_by_external_id, but accepts methods other than GET.
+
+  See [SObject Rows by External ID](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_upsert.htm)
+  Also [Insert or Update (Upsert) a Record Using an External ID](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/dome_upsert.htm)
+  """
+  @spec request_sobject_by_external_id(client, method, any, field_name, sobject_name, map) ::
+          {:ok, map} | {:error, any}
+  def request_sobject_by_external_id(
+        client,
+        method,
+        field_value,
+        field_name,
+        sobject_name,
+        attrs
+      ),
+      do:
+        do_request_sobject(
+          client,
+          method,
+          "sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
+          attrs
+        )
+
+  @doc """
   Retrieves a SObject by relationship field.
 
   See [SObject Relationships](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_relationships.htm)
@@ -202,6 +227,19 @@ defmodule ExForce do
          }) do
       {:ok, %Response{status: 200, body: body}} -> {:ok, SObject.build(body)}
       {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  defp do_request_sobject(client, method, path, attrs) do
+    case ExForce.Client.request(client, %ExForce.Request{
+           method: method,
+           url: path,
+           body: attrs
+         }) do
+      {:ok, %ExForce.Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %ExForce.Response{status: 201, body: body}} -> {:ok, body}
+      {:ok, %ExForce.Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
     end
   end

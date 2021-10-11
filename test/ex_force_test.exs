@@ -352,6 +352,47 @@ defmodule ExForceTest do
            ) == {:error, :econnrefused}
   end
 
+  test "request_sobject_by_external_id/4", %{bypass: bypass, client: client} do
+    Bypass.expect_once(
+      bypass,
+      "PATCH",
+      "/services/data/v53.0/sobjects/Account/Foo__c/foo%20bar",
+      fn conn ->
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.resp(201, """
+        {
+          "created": true,
+          "errors": [],
+          "id": "foo",
+          "success": true
+        }
+        """)
+      end
+    )
+
+    assert ExForce.request_sobject_by_external_id(
+             client,
+             :patch,
+             "foo bar",
+             "Foo__c",
+             "Account",
+             %{Name: "name"}
+           ) ==
+             {:ok, %{"created" => true, "errors" => [], "id" => "foo", "success" => true}}
+  end
+
+  test "request_sobject_by_external_id/4 - network error" do
+    assert ExForce.request_sobject_by_external_id(
+             client_with_econnrefused(),
+             :patch,
+             "foo bar",
+             "Foo__c",
+             "Account",
+             %{Name: "name"}
+           ) == {:error, :econnrefused}
+  end
+
   test "get_sobject_by_relationship/5 - success", %{bypass: bypass, client: client} do
     Bypass.expect_once(
       bypass,
