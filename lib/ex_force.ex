@@ -277,7 +277,7 @@ defmodule ExForce do
   end
 
   @doc """
-  Excutes the SOQL query and get the result of it.
+  Executes the SOQL query and get the result of it.
 
   [Query](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_query.htm)
   """
@@ -315,7 +315,7 @@ defmodule ExForce do
   end
 
   @doc """
-  Excutes the SOQL query and get the result of it, including deleted or archived objects.
+  Executes the SOQL query and get the result of it, including deleted or archived objects.
 
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
   """
