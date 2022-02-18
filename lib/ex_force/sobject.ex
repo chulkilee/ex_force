@@ -13,6 +13,12 @@ defmodule ExForce.SObject do
   @spec build(map) :: t
   def build(%{"attributes" => %{}} = raw), do: do_build(raw)
 
+  def build([%{"attributes" => %{"url" => _, "type" => _}, "Id" => _, "Name" => _} | _] = raw) do
+    Enum.map(raw, fn val ->
+      do_build(val)
+    end)
+  end
+
   defp do_build(%{"attributes" => %{"type" => type, "url" => url}} = val) do
     id = url |> String.split("/") |> List.last()
     %__MODULE__{type: type, id: id, data: do_build_data(val)}
