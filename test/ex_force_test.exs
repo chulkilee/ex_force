@@ -1202,6 +1202,21 @@ defmodule ExForceTest do
            ]
   end
 
+  test "get_recently_viewed_items/2 - no recently viewed items", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/recent/", fn conn ->
+      %{"limit" => "2"} = URI.decode_query(conn.query_string)
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      []
+      """)
+    end)
+
+    assert ExForce.get_recently_viewed_items(client, 2) ==
+             {:ok, []}
+  end
+
   test "get_recently_viewed_items/2", %{bypass: bypass, client: client} do
     Bypass.expect_once(bypass, "GET", "/services/data/v53.0/recent/", fn conn ->
       %{"limit" => "2"} = URI.decode_query(conn.query_string)
