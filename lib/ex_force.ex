@@ -376,6 +376,23 @@ defmodule ExForce do
     )
   end
 
+  @doc """
+  Get recently viewed items
+  """
+  @spec get_recently_viewed_items(client, limit :: integer) ::
+          {:ok, Enumerable.t()} | {:error, any()}
+  def get_recently_viewed_items(client, limit) do
+    case Client.request(client, %Request{
+           method: :get,
+           url: "recent/?limit=#{limit}"
+         }) do
+      {:ok, %Response{status: 200, body: []}} -> {:ok, []}
+      {:ok, %Response{status: 200, body: body}} -> {:ok, SObject.build(body)}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
   defp stream_next({client, :halt}), do: {:halt, client}
 
   defp stream_next({client, {:error, _} = error_tuple}), do: {[error_tuple], {client, :halt}}

@@ -1202,5 +1202,83 @@ defmodule ExForceTest do
            ]
   end
 
+  test "get_recently_viewed_items/2 - no recently viewed items", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/recent/", fn conn ->
+      %{"limit" => "2"} = URI.decode_query(conn.query_string)
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      []
+      """)
+    end)
+
+    assert ExForce.get_recently_viewed_items(client, 2) ==
+             {:ok, []}
+  end
+
+  test "get_recently_viewed_items/2", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/recent/", fn conn ->
+      %{"limit" => "2"} = URI.decode_query(conn.query_string)
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      [{
+        "attributes" :
+        {
+            "type" : "Account",
+            "url" : "/services/data/v53.0/sobjects/Account/a06U000000CelH0IAJ"
+        },
+        "Id" : "a06U000000CelH0IAJ",
+        "Name" : "Acme"
+      },
+      {
+          "attributes" :
+          {
+              "type" : "Opportunity",
+              "url" : "/services/data/v53.0/sobjects/Opportunity/a06U000000CelGvIAJ"
+          },
+          "Id" : "a06U000000CelGvIAJ",
+          "Name" : "Acme - 600 Widgets"
+      }]
+      """)
+    end)
+
+    assert ExForce.get_recently_viewed_items(client, 2) ==
+             {:ok,
+              [
+                %SObject{
+                  id: "a06U000000CelH0IAJ",
+                  type: "Account",
+                  data: %{
+                    "Id" => "a06U000000CelH0IAJ",
+                    "Name" => "Acme"
+                  }
+                },
+                %SObject{
+                  id: "a06U000000CelGvIAJ",
+                  type: "Opportunity",
+                  data: %{"Id" => "a06U000000CelGvIAJ", "Name" => "Acme - 600 Widgets"}
+                }
+              ]}
+  end
+
+  test "get_recently_viewed_items/2 - failure", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "GET", "/services/data/v53.0/recent/", fn conn ->
+      %{"limit" => "2"} = URI.decode_query(conn.query_string)
+
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(500, """
+      [{
+      }]
+      """)
+    end)
+
+    assert ExForce.get_recently_viewed_items(client, 2) ==
+             {:error, [%{}]}
+  end
+
   defp get(client, url), do: Client.request(client, %Request{url: url, method: :get})
 end
