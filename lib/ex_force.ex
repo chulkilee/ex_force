@@ -379,7 +379,7 @@ defmodule ExForce do
   @doc """
   Get recently viewed items
   """
-  @spec get_recently_viewed_items(client, limit :: integer) :: Enumerable.t()
+  @spec get_recently_viewed_items(client, limit :: integer) :: {:ok, Enumerable.t()} | {:error, any()}
   def get_recently_viewed_items(client, limit) do
     case Client.request(client, %Request{
            method: :get,
