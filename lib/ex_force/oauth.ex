@@ -233,7 +233,6 @@ defmodule ExForce.OAuth do
   end
 
   defp create_jwt_payload(url, payload) do
-    IO.inspect("in create jwt payload")
     key = %{"pem" => Keyword.fetch!(payload, :jwt_key)}
     signer = Joken.Signer.create("RS256", key)
 
