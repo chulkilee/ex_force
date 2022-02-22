@@ -23,6 +23,16 @@ defmodule ExForce.OAuthTest do
     conn
   end
 
+  defp assert_form_body_jwt(conn) do
+    ["application/x-www-form-urlencoded" <> _] = Conn.get_req_header(conn, "content-type")
+    {:ok, raw, conn} = Conn.read_body(conn)
+
+    assert %{"assertion" => _, "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer"} =
+             URI.decode_query(raw)
+
+    conn
+  end
+
   defp to_issued_at(string) do
     {:ok, issued_at, 0} = DateTime.from_iso8601(string)
     issued_at
@@ -285,6 +295,102 @@ defmodule ExForce.OAuthTest do
               %{
                 "error" => "invalid_grant",
                 "error_description" => "authentication failure"
+              }}
+  end
+
+  test "get_token/2 - jwt - success", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
+      conn
+      |> assert_form_body_jwt()
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(200, """
+      {
+        "access_token": "access_token_foo",
+        "id": "https://example.com/id/fakeid",
+        "instance_url": "https://example.com",
+        "token_type": "Bearer",
+        "scope":"full"
+      }
+      """)
+    end)
+
+    assert OAuth.get_token_jwt(
+             client,
+             "https://example.com/id/fakeid",
+             grant_type: "jwt",
+             client_id: "client_id_foo",
+             username: "u@example.com",
+             jwt_key: """
+             -----BEGIN RSA PRIVATE KEY-----
+             MIICWwIBAAKBgQCzr8JYWco0zKTH61qBu+5b9cRp2eBuDwLXYvvNqO6GoJUsNZpl
+             9cp7NzNZafM2akyH+88ygr4GmSejzGuCatqMskJZXDYnT8WT47a8RpOXUR96xqQa
+             Q37a22QVb+97sj8yLBgIkGn3I0bysVXjwlrENCosy2Y0Fck5sOIvxmnjKQIDAQAB
+             AoGAOrvivNpsvCGAY1DM/scdPLXzA96R+6eweBME1862WQ84c4D5/QYAr5H1mO6G
+             72yDo5dtvMb7slBxopr5MWIYGYUbrAMn7jEo3l1GUigpEnBecXkkSTMnk/DwnNW+
+             3gal2rFFIo4CR2c2pCFhfJYfxKspyEdah7qChUSDdjZg9LkCQQDYEnbwuct1e3yk
+             Dym38gWzGqxfQy5mIDrvYHY5Za1LYy+t6RUTccCLI66iI241mLAlIL4ugZ3miNhQ
+             CjMC/9OLAkEA1OQIxUHhtRA7pcw+LpuDyRPFHIZMQ0XTnOV2RFUhxenthMIV8HKX
+             eED1VI+4Tx0zvWkjErzHdI94Z/s1UHAqmwJAbH75Em945okXURn8DM2OZxzhqQQG
+             7GkKruB0/OU9Wzl225DKcHUSBcvpCKlZ0bfV2w7R8HBNZVEZrTcx3jOveQJATtu5
+             M/hXdw5wSdYCIpmQk2czWIGWtkSjQjbtPBqczAb+6HJMVijcWrsVJSGnkAatJ7hO
+             OZ6b811BqKKw+P7TiQJASGctccNhTmtm9o81RJWPRayBZHKYEVjnOjYlJM63KWQf
+             MO5oLcaGvZJrOcmOlsRVPby/liZgX+NJ8m5BFaNZgQ==
+             -----END RSA PRIVATE KEY-----
+             """
+           ) ==
+             {:ok,
+              %OAuthResponse{
+                access_token: "access_token_foo",
+                id: "https://example.com/id/fakeid",
+                instance_url: "https://example.com",
+                issued_at: nil,
+                refresh_token: nil,
+                scope: "full",
+                signature: nil,
+                token_type: "Bearer"
+              }}
+  end
+
+  test "get_token/2 - jwt - failure", %{bypass: bypass, client: client} do
+    Bypass.expect_once(bypass, "POST", "/services/oauth2/token", fn conn ->
+      conn
+      |> Conn.put_resp_content_type("application/json")
+      |> Conn.resp(400, """
+      {
+        "error": "invalid_grant",
+        "error_description": "incorrect assertion"
+      }
+      """)
+    end)
+
+    assert OAuth.get_token_jwt(
+             client,
+             "https://example.com/id/fakeid",
+             grant_type: "jwt",
+             client_id: "client_id_foo",
+             username: "u@example.com",
+             jwt_key: """
+             -----BEGIN RSA PRIVATE KEY-----
+             MIICWwIBAAKBgQCzr8JYWco0zKTH61qBu+5b9cRp2eBuDwLXYvvNqO6GoJUsNZpl
+             9cp7NzNZafM2akyH+88ygr4GmSejzGuCatqMskJZXDYnT8WT47a8RpOXUR96xqQa
+             Q37a22QVb+97sj8yLBgIkGn3I0bysVXjwlrENCosy2Y0Fck5sOIvxmnjKQIDAQAB
+             AoGAOrvivNpsvCGAY1DM/scdPLXzA96R+6eweBME1862WQ84c4D5/QYAr5H1mO6G
+             72yDo5dtvMb7slBxopr5MWIYGYUbrAMn7jEo3l1GUigpEnBecXkkSTMnk/DwnNW+
+             3gal2rFFIo4CR2c2pCFhfJYfxKspyEdah7qChUSDdjZg9LkCQQDYEnbwuct1e3yk
+             Dym38gWzGqxfQy5mIDrvYHY5Za1LYy+t6RUTccCLI66iI241mLAlIL4ugZ3miNhQ
+             CjMC/9OLAkEA1OQIxUHhtRA7pcw+LpuDyRPFHIZMQ0XTnOV2RFUhxenthMIV8HKX
+             eED1VI+4Tx0zvWkjErzHdI94Z/s1UHAqmwJAbH75Em945okXURn8DM2OZxzhqQQG
+             7GkKruB0/OU9Wzl225DKcHUSBcvpCKlZ0bfV2w7R8HBNZVEZrTcx3jOveQJATtu5
+             M/hXdw5wSdYCIpmQk2czWIGWtkSjQjbtPBqczAb+6HJMVijcWrsVJSGnkAatJ7hO
+             OZ6b811BqKKw+P7TiQJASGctccNhTmtm9o81RJWPRayBZHKYEVjnOjYlJM63KWQf
+             MO5oLcaGvZJrOcmOlsRVPby/liZgX+NJ8m5BFaNZgQ==
+             -----END RSA PRIVATE KEY-----
+             """
+           ) ==
+             {:error,
+              %{
+                "error" => "invalid_grant",
+                "error_description" => "incorrect assertion"
               }}
   end
 
