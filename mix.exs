@@ -34,6 +34,7 @@ defmodule ExForce.Mixfile do
     [
       {:tesla, "~> 1.3"},
       {:jason, "~> 1.0"},
+      {:joken, "~> 2.4"},
       {:bypass, "~> 2.1", only: :test},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: :dev, runtime: false},
