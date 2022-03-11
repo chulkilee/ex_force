@@ -26,8 +26,10 @@ defmodule ExForce.OAuthTest do
   defp assert_form_body_jwt(conn) do
     ["application/x-www-form-urlencoded" <> _] = Conn.get_req_header(conn, "content-type")
     {:ok, raw, conn} = Conn.read_body(conn)
+
     assert %{"assertion" => _, "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer"} =
              URI.decode_query(raw)
+
     conn
   end
 
@@ -312,9 +314,9 @@ defmodule ExForce.OAuthTest do
       """)
     end)
 
-    assert OAuth.get_token_jwt(
+    assert OAuth.get_token(
              client,
-             "https://example.com/id/fakeid",
+             url: "https://example.com/id/fakeid",
              grant_type: "jwt",
              client_id: "client_id_foo",
              username: "u@example.com",
@@ -361,9 +363,9 @@ defmodule ExForce.OAuthTest do
       """)
     end)
 
-    assert OAuth.get_token_jwt(
+    assert OAuth.get_token(
              client,
-             "https://example.com/id/fakeid",
+             url: "https://example.com/id/fakeid",
              grant_type: "jwt",
              client_id: "client_id_foo",
              username: "u@example.com",

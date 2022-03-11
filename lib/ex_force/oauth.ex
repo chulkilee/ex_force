@@ -114,67 +114,23 @@ defmodule ExForce.OAuth do
   @spec get_token(ExForce.Client.t() | String.t(), list) ::
           {:ok, OAuthResponse.t()} | {:error, :invalid_signature | term}
 
-  def get_token(url, payload) when is_binary(url) do
-    url
-    |> build_client
-    |> then(
-      &if Keyword.fetch!(payload, :grant_type) == "jwt" do
-        get_token_jwt(&1, url, payload)
-      else
-        get_token(&1, payload)
-      end
-    )
+  def get_token(url, payload) when is_binary(url),
+    do: url |> build_client() |> get_token(payload ++ [url: url])
+
+  def get_token(client, opts) do
+    grant_type = Keyword.fetch!(opts, :grant_type)
+
+    client
+    |> Client.request(%Request{
+      method: :post,
+      url: "/services/oauth2/token",
+      body: build_payload(grant_type, opts)
+    })
+    |> verify_signature(grant_type, opts)
   end
 
-  def get_token(client, payload) do
-    client_secret = Keyword.fetch!(payload, :client_secret)
-
-    case Client.request(client, %Request{
-           method: :post,
-           url: "/services/oauth2/token",
-           body: payload
-         }) do
-      {:ok,
-       %Response{
-         status: 200,
-         body:
-           map = %{
-             "token_type" => token_type,
-             "instance_url" => instance_url,
-             "id" => id,
-             "signature" => signature,
-             "issued_at" => issued_at,
-             "access_token" => access_token
-           }
-       }} ->
-        verify_signature(
-          %OAuthResponse{
-            token_type: token_type,
-            instance_url: instance_url,
-            id: id,
-            issued_at: issued_at |> String.to_integer() |> DateTime.from_unix!(:millisecond),
-            signature: signature,
-            access_token: access_token,
-            refresh_token: Map.get(map, "refresh_token"),
-            scope: Map.get(map, "scope")
-          },
-          client_secret
-        )
-
-      {:ok, %Response{body: body}} ->
-        {:error, body}
-
-      {:error, _} = other ->
-        other
-    end
-  end
-
-  def get_token_jwt(client, url, payload) do
-    case Client.request(client, %Request{
-           method: :post,
-           url: "/services/oauth2/token",
-           body: create_jwt_payload(url, payload)
-         }) do
+  defp verify_signature(response, "jwt", _) do
+    case response do
       {:ok,
        %Response{
          status: 200,
@@ -203,24 +159,49 @@ defmodule ExForce.OAuth do
     end
   end
 
-  defp verify_signature(
-         %OAuthResponse{id: id, issued_at: issued_at, signature: signature} = resp,
-         client_secret
-       ) do
-    if signature == calculate_signature(id, issued_at, client_secret) do
-      {:ok, resp}
-    else
-      {:error, :invalid_signature}
+  defp verify_signature(response, _, opts) do
+    client_secret = Keyword.fetch!(opts, :client_secret)
+
+    case response do
+      {:ok,
+       %Response{
+         status: 200,
+         body:
+           map = %{
+             "token_type" => token_type,
+             "instance_url" => instance_url,
+             "id" => id,
+             "signature" => signature,
+             "issued_at" => issued_at,
+             "access_token" => access_token
+           }
+       }} ->
+        if signature == calculate_signature(id, issued_at, client_secret) do
+          {:ok,
+           %OAuthResponse{
+             token_type: token_type,
+             instance_url: instance_url,
+             id: id,
+             issued_at: issued_at |> String.to_integer() |> DateTime.from_unix!(:millisecond),
+             signature: signature,
+             access_token: access_token,
+             refresh_token: Map.get(map, "refresh_token"),
+             scope: Map.get(map, "scope")
+           }}
+        else
+          {:error, :invalid_signature}
+        end
+
+      {:ok, %Response{body: body}} ->
+        {:error, body}
+
+      {:error, _} = other ->
+        other
     end
   end
 
   defp calculate_signature(id, issued_at, client_secret) do
-    issued_at_raw =
-      issued_at
-      |> DateTime.to_unix(:millisecond)
-      |> Integer.to_string()
-
-    hmac_fun(client_secret, id <> issued_at_raw)
+    hmac_fun(client_secret, id <> issued_at)
     |> Base.encode64()
   end
 
@@ -232,7 +213,9 @@ defmodule ExForce.OAuth do
     defp hmac_fun(key, data), do: :crypto.hmac(:sha256, key, data)
   end
 
-  defp create_jwt_payload(url, payload) do
+  defp build_payload("jwt", opts) do
+    {url, payload} = Keyword.pop(opts, :url)
+
     key = %{"pem" => Keyword.fetch!(payload, :jwt_key)}
     signer = Joken.Signer.create("RS256", key)
 
@@ -250,5 +233,10 @@ defmodule ExForce.OAuth do
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: token
     ]
+  end
+
+  defp build_payload(_, opts) do
+    {_, payload} = Keyword.pop(opts, :url)
+    payload
   end
 end
