@@ -335,10 +335,10 @@ defmodule ExForce.OAuthTest do
              fun: nil,
              post: [],
              pre: [
+               {Tesla.Middleware.DecodeJson, :call, [[engine: Jason]]},
                {Tesla.Middleware.BaseUrl, :call, ["http://257.0.0.0:0"]},
                {Tesla.Middleware.Compression, :call, [[format: "gzip"]]},
                {Tesla.Middleware.FormUrlencoded, :call, [[]]},
-               {Tesla.Middleware.DecodeJson, :call, [[engine: Jason]]},
                {Tesla.Middleware.Headers, :call, [[{"user-agent", "agent"}]]}
              ]
            }

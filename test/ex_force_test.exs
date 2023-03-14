@@ -48,6 +48,8 @@ defmodule ExForceTest do
 
   defp map_sobject_id(enum), do: Enum.map(enum, fn %SObject{id: id} -> id end)
 
+  defp get(client, url), do: Client.request(client, %Request{url: url, method: :get})
+
   test "build_client/2 - map", %{bypass: bypass} do
     Bypass.expect_once(bypass, "GET", "/", fn conn ->
       conn
@@ -1201,6 +1203,4 @@ defmodule ExForceTest do
              "account6"
            ]
   end
-
-  defp get(client, url), do: Client.request(client, %Request{url: url, method: :get})
 end
