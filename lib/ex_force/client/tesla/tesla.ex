@@ -41,7 +41,6 @@ defmodule ExForce.Client.Tesla do
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
-    append_middleware = get_from_opts_or_config(opts, :append_middleware, [])
     adapter = get_from_opts_or_config(opts, :adapter)
     headers = get_headers(opts)
 
@@ -52,7 +51,7 @@ defmodule ExForce.Client.Tesla do
         {Tesla.Middleware.Compression, format: "gzip"},
         {Tesla.Middleware.JSON, engine: Jason},
         {Tesla.Middleware.Headers, headers}
-      ] ++ append_middleware
+      ] ++ get_from_opts_or_config(opts, :append_middleware, [])
 
     Tesla.client(middleware, adapter)
   end
@@ -70,7 +69,6 @@ defmodule ExForce.Client.Tesla do
   """
   @impl ExForce.Client
   def build_oauth_client(instance_url, opts \\ []) do
-    append_middleware = get_from_opts_or_config(opts, :append_middleware, [])
     adapter = get_from_opts_or_config(opts, :adapter)
 
     middleware =
@@ -80,7 +78,7 @@ defmodule ExForce.Client.Tesla do
         {Tesla.Middleware.Compression, format: "gzip"},
         Tesla.Middleware.FormUrlencoded,
         {Tesla.Middleware.Headers, get_headers(opts)}
-      ] ++ append_middleware
+      ] ++ get_from_opts_or_config(opts, :append_middleware, [])
 
     Tesla.client(middleware, adapter)
   end
