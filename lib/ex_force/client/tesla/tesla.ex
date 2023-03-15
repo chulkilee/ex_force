@@ -41,19 +41,23 @@ defmodule ExForce.Client.Tesla do
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
-    Tesla.client(
+    adapter = get_from_opts_or_config(opts, :adapter)
+    headers = get_headers(opts)
+
+    middleware =
       [
         {ExForce.Client.Tesla.Middleware,
-         {instance_url, Keyword.get(opts, :api_version, @default_api_version)}},
+         {instance_url, get_from_opts_or_config(opts, :api_version, @default_api_version)}},
         {Tesla.Middleware.Compression, format: "gzip"},
         {Tesla.Middleware.JSON, engine: Jason},
-        {Tesla.Middleware.Headers, get_headers(opts)}
-      ],
-      Keyword.get(opts, :adapter)
-    )
+        {Tesla.Middleware.Headers, headers}
+      ] ++ get_from_opts_or_config(opts, :append_middleware, [])
+
+    Tesla.client(middleware, adapter)
   end
 
-  defp get_headers(opts), do: Keyword.get(opts, :headers, [{"user-agent", @default_user_agent}])
+  defp get_headers(opts),
+    do: get_from_opts_or_config(opts, :headers, [{"user-agent", @default_user_agent}])
 
   @doc """
   Returns a `Tesla` client for `ExForce.OAuth` functions
@@ -65,16 +69,18 @@ defmodule ExForce.Client.Tesla do
   """
   @impl ExForce.Client
   def build_oauth_client(instance_url, opts \\ []) do
-    Tesla.client(
+    adapter = get_from_opts_or_config(opts, :adapter)
+
+    middleware =
       [
+        {Tesla.Middleware.DecodeJson, engine: Jason},
         {Tesla.Middleware.BaseUrl, instance_url},
         {Tesla.Middleware.Compression, format: "gzip"},
         Tesla.Middleware.FormUrlencoded,
-        {Tesla.Middleware.DecodeJson, engine: Jason},
         {Tesla.Middleware.Headers, get_headers(opts)}
-      ],
-      Keyword.get(opts, :adapter)
-    )
+      ] ++ get_from_opts_or_config(opts, :append_middleware, [])
+
+    Tesla.client(middleware, adapter)
   end
 
   @doc """
@@ -85,6 +91,15 @@ defmodule ExForce.Client.Tesla do
     client
     |> Tesla.request(cast_tesla_request(request))
     |> cast_response()
+  end
+
+  defp get_from_opts_or_config(opts, key, default \\ nil) do
+    from_opts = Keyword.get(opts, key)
+
+    app_config = Application.get_env(:ex_force, __MODULE__, [])
+    from_app_config = Keyword.get(app_config, key)
+
+    from_opts || from_app_config || default
   end
 
   defp cast_tesla_request(%Request{} = request) do
