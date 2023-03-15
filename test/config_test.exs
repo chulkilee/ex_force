@@ -25,16 +25,12 @@ defmodule ExForce.ConfigTest do
       {Tesla.Middleware.Timeout, :call, [[timeout: 1000]]}
     ]
 
-    custom_opts = [
+    Application.put_env(:ex_force, ExForce.Client.Tesla,
       api_version: api_version,
-      middleware: custom_middleware
-    ]
+      append_middleware: custom_middleware
+    )
 
-    Application.put_all_env(ex_force: custom_opts)
-
-    on_exit(fn ->
-      Enum.each(custom_opts, fn {key, _} -> Application.delete_env(:ex_force, key) end)
-    end)
+    on_exit(fn -> Application.delete_env(:ex_force, ExForce.Client.Tesla) end)
 
     Bypass.expect_once(bypass, "GET", "/foo", fn conn ->
       conn

@@ -41,23 +41,24 @@ defmodule ExForce.Client.Tesla do
   end
 
   def build_client(instance_url, opts) when is_binary(instance_url) do
-    custom_middleware = get_from_opts_or_config(opts, :middleware, [])
-
+    append_middleware = get_from_opts_or_config(opts, :append_middleware, [])
     adapter = get_from_opts_or_config(opts, :adapter)
-
     headers = get_headers(opts)
 
-    [
-      {ExForce.Client.Tesla.Middleware,
-       {instance_url, get_from_opts_or_config(opts, :api_version, @default_api_version)}},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      {Tesla.Middleware.JSON, engine: Jason},
-      {Tesla.Middleware.Headers, headers},
-      custom_middleware
-    ]
-    |> List.flatten()
-    |> Tesla.client(adapter)
+    middleware =
+      [
+        {ExForce.Client.Tesla.Middleware,
+         {instance_url, get_from_opts_or_config(opts, :api_version, @default_api_version)}},
+        {Tesla.Middleware.Compression, format: "gzip"},
+        {Tesla.Middleware.JSON, engine: Jason},
+        {Tesla.Middleware.Headers, headers}
+      ] ++ append_middleware
+
+    Tesla.client(middleware, adapter)
   end
+
+  defp get_headers(opts),
+    do: get_from_opts_or_config(opts, :headers, [{"user-agent", @default_user_agent}])
 
   @doc """
   Returns a `Tesla` client for `ExForce.OAuth` functions
@@ -69,20 +70,19 @@ defmodule ExForce.Client.Tesla do
   """
   @impl ExForce.Client
   def build_oauth_client(instance_url, opts \\ []) do
-    custom_middleware = get_from_opts_or_config(opts, :middleware, [])
-
+    append_middleware = get_from_opts_or_config(opts, :append_middleware, [])
     adapter = get_from_opts_or_config(opts, :adapter)
 
-    [
-      {Tesla.Middleware.DecodeJson, engine: Jason},
-      {Tesla.Middleware.BaseUrl, instance_url},
-      {Tesla.Middleware.Compression, format: "gzip"},
-      Tesla.Middleware.FormUrlencoded,
-      {Tesla.Middleware.Headers, get_headers(opts)},
-      custom_middleware
-    ]
-    |> List.flatten()
-    |> Tesla.client(adapter)
+    middleware =
+      [
+        {Tesla.Middleware.DecodeJson, engine: Jason},
+        {Tesla.Middleware.BaseUrl, instance_url},
+        {Tesla.Middleware.Compression, format: "gzip"},
+        Tesla.Middleware.FormUrlencoded,
+        {Tesla.Middleware.Headers, get_headers(opts)}
+      ] ++ append_middleware
+
+    Tesla.client(middleware, adapter)
   end
 
   @doc """
@@ -95,11 +95,14 @@ defmodule ExForce.Client.Tesla do
     |> cast_response()
   end
 
-  defp get_from_opts_or_config(opts, key, default \\ nil),
-    do: Keyword.get(opts, key) || Application.get_env(:ex_force, key) || default
+  defp get_from_opts_or_config(opts, key, default \\ nil) do
+    from_opts = Keyword.get(opts, key)
 
-  defp get_headers(opts),
-    do: get_from_opts_or_config(opts, :headers, [{"user-agent", @default_user_agent}])
+    app_config = Application.get_env(:ex_force, __MODULE__, [])
+    from_app_config = Keyword.get(app_config, key)
+
+    from_opts || from_app_config || default
+  end
 
   defp cast_tesla_request(%Request{} = request) do
     request

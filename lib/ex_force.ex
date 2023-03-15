@@ -14,17 +14,19 @@ defmodule ExForce do
   end
   ```
 
-  Configure default settings in config/config.exs (optional).
+  Configure default settings for the Tesla client (currently the only
+  client supported) in config/config.exs (optional).
 
   ```elixir
   # config/config.exs
 
-  config :ex_force, :api_version, "43.0"
-  config :ex_force, :adapter, {Tesla.Adapter.Hackney, [recv_timeout: 1_000]}
-  config :ex_force, :middleware, [
-    Tesla.Middleware.Telemetry,
-    {Tesla.Middleware.Timeout, timeout: :timer.seconds(1)}
-  ]
+  config :ex_force, ExForce.Client.Tesla,
+    api_version: "43.0",
+    adapter: {Tesla.Adapter.Hackney, [recv_timeout: 1_000]},
+    append_middleware: [
+      Tesla.Middleware.Telemetry,
+      {Tesla.Middleware.Timeout, timeout: :timer.seconds(1)}
+    ]
   ```
 
   Check out [Choosing a Tesla Adapter](https://github.com/chulkilee/ex_force/wiki/Choosing-a-Tesla-Adapter).
