@@ -43,14 +43,16 @@ defmodule Salesforce do
 
   @impl true
   def init(callback_fun) when is_function(callback_fun, 0) do
-    applications = %{}
-
-    callback_fun.()
-    |> Enum.each(fn app ->
-      with {:ok, client} <- init_client(app.config) do
-        Map.put(applications, String.to_atom(app.app_token), %{config: app.config, client: client})
-      end
-    end)
+    applications =
+      callback_fun.()
+      |> Enum.reduce(%{}, fn app, applications ->
+        with {:ok, client} <- init_client(app.config) do
+          Map.put(applications, String.to_atom(app.app_token), %{
+            config: app.config,
+            client: client
+          })
+        end
+      end)
 
     {:ok, %State{applications: applications}}
   end
