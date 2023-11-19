@@ -64,7 +64,7 @@ defmodule Salesforce do
     case init_client(app.config) do
       {:ok, client} ->
         applications =
-          Map.put(applications, String.to_atom(app.app_token), %{
+          Map.put(applications, String.to_atom(app.config.app_token), %{
             config: app.config,
             client: client
           })
