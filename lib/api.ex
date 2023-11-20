@@ -125,7 +125,7 @@ defmodule ExForce.API do
     with {:ok, client} <- get_client(app_token) do
       case ExForce.get_sobject(client, id, sobject_name, fields) do
         {:ok, %ExForce.SObject{data: data}} ->
-          data
+          {:ok, data}
 
         {:error,
          [
@@ -135,7 +135,7 @@ defmodule ExForce.API do
            }
          ]} ->
           # re-auth
-          code
+          {:error, code}
       end
     end
   end
@@ -159,7 +159,7 @@ defmodule ExForce.API do
     with {:ok, client} <- get_client(app_token) do
       case ExForce.get_sobject_by_external_id(client, field_value, field_name, sobject_name) do
         {:ok, %ExForce.SObject{data: data}} ->
-          data
+          {:ok, data}
 
         {:error,
          [
@@ -169,7 +169,7 @@ defmodule ExForce.API do
            }
          ]} ->
           # re-auth
-          code
+          {:error, code}
 
         {:error, list} ->
           list
@@ -178,6 +178,38 @@ defmodule ExForce.API do
           |> List.last()
           |> (&get_object_by_id(app_token, &1, sobject_name)).()
       end
+    end
+  end
+
+  @spec create_apex_class(binary(), binary(), binary()) :: {:error, any()} | {:ok, binary()}
+  def create_apex_class(
+        app_token,
+        class_name,
+        class_body
+      ) do
+    with {:ok, client} <- get_client(app_token) do
+      ExForce.create_sobject(client, "ApexClass", %{
+        Name: class_name,
+        Body: class_body
+      })
+    end
+  end
+
+  @spec create_apex_trigger(binary(), binary(), binary(), binary()) ::
+          {:error, any()} | {:ok, binary()}
+  def create_apex_trigger(
+        app_token,
+        trigger_name,
+        trigger_body,
+        trigger_object
+      ) do
+    with {:ok, client} <- get_client(app_token) do
+      ExForce.create_sobject(client, "ApexTrigger", %{
+        Name: trigger_name,
+        TableEnumOrId: trigger_object,
+        Body: trigger_body,
+        Status: "Active"
+      })
     end
   end
 end
