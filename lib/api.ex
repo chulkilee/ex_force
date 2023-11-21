@@ -212,4 +212,24 @@ defmodule ExForce.API do
       })
     end
   end
+
+  @spec delete_apex_class(any(), any()) :: :ok | {:error, any()}
+  def delete_apex_class(
+        app_token,
+        class_id
+      ) do
+    with {:ok, client} <- get_client(app_token) do
+      ExForce.delete_sobject(client, class_id, "ApexClass")
+    end
+  end
+
+  @spec delete_apex_trigger(any(), any()) :: :ok | {:error, any()}
+  def delete_apex_trigger(
+        app_token,
+        trigger_id
+      ) do
+    with {:ok, client} <- get_client(app_token) do
+      ExForce.delete_sobject(client, trigger_id, "ApexTrigger")
+    end
+  end
 end
