@@ -24,7 +24,7 @@ defmodule Salesforce do
   def register_app_token(app) do
     GenServer.call(__MODULE__, {:register_app, app})
   end
-
+  
   def get_app(app_token) do
     GenServer.call(__MODULE__, {:get_app, app_token})
   end
@@ -46,7 +46,7 @@ defmodule Salesforce do
     applications =
       callback_fun.()
       |> Enum.reduce(%{}, fn app, applications ->
-        with {:ok, client} <- init_client(app.config) do
+        with {:ok, client} <- refresh_client(app.config) do
           Map.put(applications, String.to_atom(app.app_token), %{
             config: app.config,
             client: client
@@ -61,7 +61,7 @@ defmodule Salesforce do
   def handle_info({:refresh_token, app_token}, %State{applications: applications} = state) do
     app = Map.get(applications, String.to_atom(app_token))
 
-    case init_client(app.config) do
+    case refresh_client(app.config) do
       {:ok, client} ->
         applications =
           Map.put(applications, String.to_atom(app.config.app_token), %{
@@ -79,14 +79,14 @@ defmodule Salesforce do
   @impl true
   def handle_call({:register_app, app}, _from, %State{applications: applications} = state) do
     case init_client(app) do
-      {:ok, client} ->
+      {:ok, %{client: client,refresh_token: refresh_token}} ->
         applications =
           Map.put(applications, String.to_atom(app.app_token), %{
-            config: app,
+            config: %{app | refresh_token: refresh_token},
             client: client
           })
 
-        {:reply, :ok, %State{state | applications: applications}}
+        {:reply, refresh_token, %State{state | applications: applications}}
 
       {:error, reason} ->
         {:stop, reason}
@@ -119,21 +119,54 @@ defmodule Salesforce do
            app_token: app_token,
            auth_url: auth_url,
            client_id: client_id,
-           client_secret: client_secret
+           client_secret: client_secret,
+           redirect_uri: redirect_uri,
+           code: code,
+           code_verifier: code_verifier,
+           refresh_token: refresh_token
          } = _config
        ) do
-    with {:ok, %{instance_url: instance_url} = oauth_response} <-
+    with {:ok, %{instance_url: instance_url,refresh_token: new_refresh_token} = oauth_response} <-
            ExForce.OAuth.get_token(auth_url,
-             grant_type: "client_credentials",
+             grant_type: "autohorization_code",
              client_id: client_id,
-             client_secret: client_secret
+             client_secret: client_secret,
+             redirect_uri: redirect_uri,
+             code: code,
+             code_verifier: code_verifier,
+             refresh_token: refresh_token
            ) do
       {:ok, version_maps} = ExForce.versions(instance_url)
       latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
 
       client = ExForce.build_client(oauth_response, api_version: latest_version)
       Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
-      {:ok, client}
+      {:ok, %{client: client,refresh_token: new_refresh_token}}
+    end
+  end
+
+  defp refresh_client(
+         %{
+           app_token: app_token,
+           auth_url: auth_url,
+           client_id: client_id,
+           client_secret: client_secret,
+           refresh_token: refresh_token
+         } = _config
+       ) do
+    with {:ok, %{instance_url: instance_url}=oauth_response} <-
+           ExForce.OAuth.get_token(auth_url,
+             grant_type: "refresh_token",
+             client_id: client_id,
+             client_secret: client_secret,
+             refresh_token: refresh_token
+           ) do
+      {:ok, version_maps} = ExForce.versions(instance_url)
+      latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
+
+      client = ExForce.build_client(oauth_response, api_version: latest_version)
+      Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
+      {:ok, %{client: client,refresh_token: refresh_token}}
     end
   end
 end
