@@ -46,7 +46,7 @@ defmodule Salesforce do
     applications =
       callback_fun.()
       |> Enum.reduce(%{}, fn app, applications ->
-        with {:ok, client} <- refresh_client(app.config) do
+        with {:ok, %{client: client}} <- refresh_client(app.config) do
           Map.put(applications, String.to_atom(app.app_token), %{
             config: app.config,
             client: client
