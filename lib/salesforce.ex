@@ -3,6 +3,8 @@ defmodule Salesforce do
   This genserver for salesforce that holds integrations config and clients for per app token
   """
 
+  require Logger
+
   defmodule State do
     defstruct [
       :applications
@@ -82,7 +84,7 @@ defmodule Salesforce do
       {:ok, %{client: client,refresh_token: refresh_token}} ->
         applications =
           Map.put(applications, String.to_atom(app.app_token), %{
-            config: %{app | refresh_token: refresh_token},
+            config: Map.put(app,:refresh_token,refresh_token),
             client: client
           })
 
@@ -122,7 +124,8 @@ defmodule Salesforce do
            client_secret: client_secret,
            redirect_uri: redirect_uri,
            code: code,
-           code_verifier: code_verifier
+           code_verifier: code_verifier,
+           code_challenge_method: code_challenge_method
          } = _config
        ) do
     with {:ok, %{instance_url: instance_url,refresh_token: new_refresh_token} = oauth_response} <-
@@ -132,7 +135,8 @@ defmodule Salesforce do
              client_secret: client_secret,
              redirect_uri: redirect_uri,
              code: code,
-             code_verifier: code_verifier
+             code_verifier: code_verifier,
+             code_challenge_method: code_challenge_method
            ) do
       {:ok, version_maps} = ExForce.versions(instance_url)
       latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
@@ -140,6 +144,10 @@ defmodule Salesforce do
       client = ExForce.build_client(oauth_response, api_version: latest_version)
       Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
       {:ok, %{client: client,refresh_token: new_refresh_token}}
+    else
+      {:error, reason} ->
+        Logger.warn("Failed to authenticate for app_token #{app_token} with salesforce: #{inspect reason}")
+        {:error, reason}
     end
   end
 
@@ -165,6 +173,10 @@ defmodule Salesforce do
       client = ExForce.build_client(oauth_response, api_version: latest_version)
       Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
       {:ok, %{client: client,refresh_token: refresh_token}}
+    else
+      {:error, reason} ->
+        Logger.warn("Failed to refresh for app_token #{app_token} with salesforce: #{inspect reason}")
+        {:error, reason}
     end
   end
 end
