@@ -24,7 +24,7 @@ defmodule Salesforce do
   def register_app_token(app) do
     GenServer.call(__MODULE__, {:register_app, app})
   end
-  
+
   def get_app(app_token) do
     GenServer.call(__MODULE__, {:get_app, app_token})
   end
@@ -122,8 +122,7 @@ defmodule Salesforce do
            client_secret: client_secret,
            redirect_uri: redirect_uri,
            code: code,
-           code_verifier: code_verifier,
-           refresh_token: refresh_token
+           code_verifier: code_verifier
          } = _config
        ) do
     with {:ok, %{instance_url: instance_url,refresh_token: new_refresh_token} = oauth_response} <-
@@ -133,8 +132,7 @@ defmodule Salesforce do
              client_secret: client_secret,
              redirect_uri: redirect_uri,
              code: code,
-             code_verifier: code_verifier,
-             refresh_token: refresh_token
+             code_verifier: code_verifier
            ) do
       {:ok, version_maps} = ExForce.versions(instance_url)
       latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
