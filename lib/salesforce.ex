@@ -127,7 +127,7 @@ defmodule Salesforce do
        ) do
     with {:ok, %{instance_url: instance_url,refresh_token: new_refresh_token} = oauth_response} <-
            ExForce.OAuth.get_token(auth_url,
-             grant_type: "autohorization_code",
+             grant_type: "authorization_code",
              client_id: client_id,
              client_secret: client_secret,
              redirect_uri: redirect_uri,
