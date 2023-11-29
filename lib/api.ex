@@ -17,20 +17,16 @@ defmodule ExForce.API do
   end
 
   @spec register_new_app(%{
-          :app_token => any(),
-          :auth_url => any(),
-          :client_id => any(),
+          :app_token => String.t(),
+          :auth_url => String.t(),
+          :client_id => String.t(),
           :client_secret => any(),
+          :redirect_uri => String.t(),
+          :code => String.t(),
+          :code_verifier => String.t(),
           optional(any()) => any()
         }) :: any()
-  def register_new_app(
-        %{
-          app_token: _app_token,
-          auth_url: _auth_url,
-          client_id: _client_id,
-          client_secret: _client_secret
-        } = config
-      ) do
+  def register_new_app(config) do
     Salesforce.register_app_token(config)
   end
 
