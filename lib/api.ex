@@ -48,7 +48,7 @@ defmodule ExForce.API do
       |> IO.inspect(limit: :infinity)
       |> Enum.filter(fn field -> field["unique"] == true end)
       |> Enum.map(fn field ->
-        %{label: field["label"], name: field["name"], type: field["type"]}
+        %{title: field["label"], id: field["name"], type: field["type"]}
       end)
     end
   end
@@ -64,7 +64,7 @@ defmodule ExForce.API do
 
       fields
       |> Enum.map(fn field ->
-        %{label: field["label"], name: field["name"], type: field["type"]}
+        %{title: field["label"], id: field["name"], type: field["type"]}
       end)
     end
   end
