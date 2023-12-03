@@ -27,6 +27,10 @@ defmodule Salesforce do
     GenServer.call(__MODULE__, {:register_app, app})
   end
 
+  def refresh_app_token(config) do
+    GenServer.call(__MODULE__, {:refresh_token, config})
+  end
+
   def get_app(app_token) do
     GenServer.call(__MODULE__, {:get_app, app_token})
   end
@@ -64,7 +68,7 @@ defmodule Salesforce do
     app = Map.get(applications, String.to_atom(app_token))
 
     case refresh_client(app.config) do
-      {:ok, %{client: client,refresh_token: refresh_token}} ->
+      {:ok, %{client: client, refresh_token: refresh_token}} ->
         applications =
           Map.put(applications, String.to_atom(app.config.app_token), %{
             config: app.config,
@@ -81,14 +85,31 @@ defmodule Salesforce do
   @impl true
   def handle_call({:register_app, app}, _from, %State{applications: applications} = state) do
     case init_client(app) do
-      {:ok, %{client: client,refresh_token: refresh_token}} ->
+      {:ok, %{client: client, refresh_token: refresh_token}} ->
         applications =
           Map.put(applications, String.to_atom(app.app_token), %{
-            config: Map.put(app,:refresh_token,refresh_token),
+            config: Map.put(app, :refresh_token, refresh_token),
             client: client
           })
 
         {:reply, refresh_token, %State{state | applications: applications}}
+
+      {:error, reason} ->
+        {:stop, reason}
+    end
+  end
+
+  @impl true
+  def handle_call({:refresh_token, config}, _from, %State{applications: applications} = state) do
+    case refresh_client(config) do
+      {:ok, %{client: client, refresh_token: refresh_token}} ->
+        applications =
+          Map.put(applications, String.to_atom(config.app_token), %{
+            config: config,
+            client: client
+          })
+
+        {:noreply, %State{state | applications: applications}}
 
       {:error, reason} ->
         {:stop, reason}
@@ -128,7 +149,7 @@ defmodule Salesforce do
            code_challenge_method: code_challenge_method
          } = _config
        ) do
-    with {:ok, %{instance_url: instance_url,refresh_token: new_refresh_token} = oauth_response} <-
+    with {:ok, %{instance_url: instance_url, refresh_token: new_refresh_token} = oauth_response} <-
            ExForce.OAuth.get_token(auth_url,
              grant_type: "authorization_code",
              client_id: client_id,
@@ -143,10 +164,13 @@ defmodule Salesforce do
 
       client = ExForce.build_client(oauth_response, api_version: latest_version)
       Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
-      {:ok, %{client: client,refresh_token: new_refresh_token}}
+      {:ok, %{client: client, refresh_token: new_refresh_token}}
     else
       {:error, reason} ->
-        Logger.warn("Failed to authenticate for app_token #{app_token} with salesforce: #{inspect reason}")
+        Logger.warn(
+          "Failed to authenticate for app_token #{app_token} with salesforce: #{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end
@@ -160,7 +184,7 @@ defmodule Salesforce do
            refresh_token: refresh_token
          } = _config
        ) do
-    with {:ok, %{instance_url: instance_url}=oauth_response} <-
+    with {:ok, %{instance_url: instance_url} = oauth_response} <-
            ExForce.OAuth.get_token(auth_url,
              grant_type: "refresh_token",
              client_id: client_id,
@@ -172,10 +196,13 @@ defmodule Salesforce do
 
       client = ExForce.build_client(oauth_response, api_version: latest_version)
       Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
-      {:ok, %{client: client,refresh_token: refresh_token}}
+      {:ok, %{client: client, refresh_token: refresh_token}}
     else
       {:error, reason} ->
-        Logger.warn("Failed to refresh for app_token #{app_token} with salesforce: #{inspect reason}")
+        Logger.warn(
+          "Failed to refresh for app_token #{app_token} with salesforce: #{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end

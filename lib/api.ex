@@ -30,6 +30,17 @@ defmodule ExForce.API do
     Salesforce.register_app_token(config)
   end
 
+  @spec refresh_app_client(%{
+          :app_token => String.t(),
+          :auth_url => String.t(),
+          :client_id => String.t(),
+          :client_secret => any(),
+          :refresh_token => String.t()
+        }) :: any()
+  def refresh_app_client(config) do
+    Salesforce.refresh_app_token(config)
+  end
+
   @doc """
 
   Example:
