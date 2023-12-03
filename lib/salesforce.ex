@@ -64,7 +64,7 @@ defmodule Salesforce do
     app = Map.get(applications, String.to_atom(app_token))
 
     case refresh_client(app.config) do
-      {:ok, client} ->
+      {:ok, %{client: client,refresh_token: refresh_token}} ->
         applications =
           Map.put(applications, String.to_atom(app.config.app_token), %{
             config: app.config,
