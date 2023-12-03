@@ -109,7 +109,7 @@ defmodule Salesforce do
             client: client
           })
 
-        {:noreply, %State{state | applications: applications}}
+        {:reply, refresh_token, %State{state | applications: applications}}
 
       {:error, reason} ->
         {:stop, reason}
