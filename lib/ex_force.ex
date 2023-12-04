@@ -83,9 +83,9 @@ defmodule ExForce do
   Lists basic account info
 
   """
-  @spec info(String.t()) :: {:ok, map} | {:error, any}
-  def info(client) do
-    case Client.request(client,%Request{method: :get, url: "/id/00DDp0000018Wr2MAE/005Dp000002NCZXIA4"}) do
+  @spec info(String.t(), String.t()) :: {:ok, map} | {:error, any}
+  def info(client,"https://login.salesforce.com" <> id_path) do
+    case Client.request(client,%Request{method: :get, url: id_path}) do
       {:ok, %Response{status: 200, body: body}} -> {:ok, body}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other

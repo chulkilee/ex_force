@@ -149,7 +149,7 @@ defmodule Salesforce do
            code_challenge_method: code_challenge_method
          } = _config
        ) do
-    with {:ok, %{instance_url: instance_url, refresh_token: new_refresh_token} = oauth_response} <-
+    with {:ok, %{instance_url: instance_url, refresh_token: new_refresh_token,id: id} = oauth_response} <-
            ExForce.OAuth.get_token(auth_url,
              grant_type: "authorization_code",
              client_id: client_id,
@@ -163,7 +163,7 @@ defmodule Salesforce do
       latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
 
       with client = ExForce.build_client(oauth_response, api_version: latest_version),
-      {:ok, body} <- ExForce.info(client) do
+      {:ok, body} <- ExForce.info(client,id) do
         Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
         {:ok, %{client: client, response: %{metadata: Map.put(body,"instance_url",instance_url), refresh_token: new_refresh_token}}}
       end
