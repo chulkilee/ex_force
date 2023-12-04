@@ -80,6 +80,19 @@ defmodule ExForce do
   end
 
   @doc """
+  Lists basic account info
+
+  """
+  @spec info(String.t()) :: {:ok, map} | {:error, any}
+  def info(client) do
+    case Client.request(client,%Request{method: :get, url: "/id/00DDp0000018Wr2MAE/005Dp000002NCZXIA4"}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  @doc """
   Lists available resources for the specific API version.
 
   See [Resources by Version](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_discoveryresource.htm)

@@ -85,14 +85,14 @@ defmodule Salesforce do
   @impl true
   def handle_call({:register_app, app}, _from, %State{applications: applications} = state) do
     case init_client(app) do
-      {:ok, %{client: client, refresh_token: refresh_token}} ->
+      {:ok, %{client: client, response: %{refresh_token: refresh_token}=response}} ->
         applications =
           Map.put(applications, String.to_atom(app.app_token), %{
             config: Map.put(app, :refresh_token, refresh_token),
             client: client
           })
 
-        {:reply, refresh_token, %State{state | applications: applications}}
+        {:reply, response, %State{state | applications: applications}}
 
       {:error, reason} ->
         {:stop, reason}
@@ -162,9 +162,11 @@ defmodule Salesforce do
       {:ok, version_maps} = ExForce.versions(instance_url)
       latest_version = version_maps |> Enum.map(&Map.fetch!(&1, "version")) |> List.last()
 
-      client = ExForce.build_client(oauth_response, api_version: latest_version)
-      Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
-      {:ok, %{client: client, refresh_token: new_refresh_token}}
+      with client = ExForce.build_client(oauth_response, api_version: latest_version),
+      {:ok, body} <- ExForce.info(client) do
+        Process.send_after(self(), {:refresh_token, app_token}, @refresh_token_interval_ms)
+        {:ok, %{client: client, response: %{metadata: Map.put(body,"instance_url",instance_url), refresh_token: new_refresh_token}}}
+      end
     else
       {:error, reason} ->
         Logger.warn(
