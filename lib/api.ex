@@ -85,19 +85,21 @@ defmodule ExForce.API do
   param_list is the list of parameters we want to retrieve from the object, eg: ["Name","Email"]
 
   Example:
-  ExForce.API.get_contacts_paginated("NX-44d03690",["Name","Email"],10,0)
+  ExForce.API.get_objects_paginated("NX-44d03690","Contact",["Name","Email"],10,0)
   """
-  @spec get_contacts_paginated(
+  @spec get_objects_paginated(
+          binary(),
           binary(),
           charlist(),
           number(),
           number()
         ) :: list()
-  def get_contacts_paginated(app_token, param_list, per_page, page) do
+  def get_objects_paginated(app_token, object, param_list, per_page, page)
+      when object in ["Contact", "Lead", "Account"] do
     with {:ok, client} <- get_client(app_token) do
       ExForce.query_stream(
         client,
-        "SELECT #{Enum.join(param_list, " ,")} FROM Contact LIMIT #{per_page} OFFSET #{per_page * page}"
+        "SELECT #{Enum.join(param_list, " ,")} FROM #{object} LIMIT #{per_page} OFFSET #{per_page * page}"
       )
       |> Stream.map(fn
         {:error,
@@ -110,9 +112,9 @@ defmodule ExForce.API do
           # re-auth
           code
 
-        contact ->
-          contact.data
-          |> Map.put("id", contact.id)
+        result ->
+          result.data
+          |> Map.put("id", result.id)
       end)
       |> Enum.to_list()
     end
