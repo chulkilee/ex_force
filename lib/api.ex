@@ -114,7 +114,7 @@ defmodule ExForce.API do
 
         result ->
           result.data
-          |> Map.put("id", result.id)
+          |> Map.put("Id", result.id)
       end)
       |> Enum.to_list()
     end
