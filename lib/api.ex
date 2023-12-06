@@ -244,7 +244,7 @@ defmodule ExForce.API do
           {:error, any()} | {:ok, binary()}
   def create_custom_object_schema(app_token, schema) do
     with {:ok, client} <- get_client(app_token),
-         {:ok, %{config: %{access_token: access_token}}} = Salesforce.get_app(app_token) do
+         %{config: %{access_token: access_token}} = Salesforce.get_app(app_token) do
       ExForce.create_custom_object_schema(client, access_token, schema)
     end
   end
