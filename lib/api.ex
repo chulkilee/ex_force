@@ -239,4 +239,13 @@ defmodule ExForce.API do
       ExForce.delete_sobject(client, trigger_id, "ApexTrigger")
     end
   end
+
+  @spec create_custom_object_schema(String.t(), any()) ::
+          {:error, any()} | {:ok, binary()}
+  def create_custom_object_schema(app_token, schema) do
+    with {:ok, client} <- get_client(app_token),
+         {:ok, %{config: %{access_token: access_token}}} = Salesforce.get_app(app_token) do
+      ExForce.create_custom_object_schema(client, access_token, schema)
+    end
+  end
 end
