@@ -84,8 +84,8 @@ defmodule ExForce do
 
   """
   @spec info(String.t(), String.t()) :: {:ok, map} | {:error, any}
-  def info(client,"https://login.salesforce.com" <> id_path) do
-    case Client.request(client,%Request{method: :get, url: id_path}) do
+  def info(client, "https://login.salesforce.com" <> id_path) do
+    case Client.request(client, %Request{method: :get, url: id_path}) do
       {:ok, %Response{status: 200, body: body}} -> {:ok, body}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other
@@ -255,6 +255,22 @@ defmodule ExForce do
     body = %{records: records, allOrNone: all_or_none}
 
     case Client.request(client, %Request{method: :patch, url: "composite/sobjects", body: body}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
+  @spec create_custom_object_schema(client, String.t(), schema: String.t()) ::
+          {:ok, custom_object_id: String.t()} | {:error, any}
+  def create_custom_object_schema(client, access_token, schema) do
+    case Client.request(client, %Request{
+           method: :post,
+           url: "/services/Soap/m/",
+           body: String.replace(schema, "{{session_id}}", access_token),
+           headers: [{"content-type", "text/xml"}, {"SOAPAction", "create"}]
+         }) do
+      {:ok, %Response{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
       {:ok, %Response{status: 200, body: body}} -> {:ok, body}
       {:ok, %Response{body: body}} -> {:error, body}
       {:error, _} = other -> other

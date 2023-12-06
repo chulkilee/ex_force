@@ -10,6 +10,9 @@ defmodule ExForce.Client.Tesla.Middleware do
     |> Tesla.run(next)
   end
 
+  defp apply_url(%{url: "/services/Soap/m/"} = env, {base, api_version}),
+    do: %{env | url: base <> "/services/Soap/m/" <> api_version}
+
   defp apply_url(%{url: "/" <> _ = path} = env, {base, _api_version}),
     do: %{env | url: base <> path}
 
