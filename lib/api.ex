@@ -1,6 +1,5 @@
 defmodule ExForce.API do
   require Logger
-  alias ExForce.Response
 
   @moduledoc """
   Simple wrapper for EXForce library for userpilot needs.
@@ -241,7 +240,7 @@ defmodule ExForce.API do
     end
   end
 
-  @spec create_custom_event(binary(), binary(), binary()) ::
+  @spec create_custom_event(binary(), binary(), map()) ::
           {:error, any()} | {:ok, binary()}
   def create_custom_event(
         app_token,
