@@ -82,9 +82,15 @@ defmodule ExForce.Client.Tesla do
   """
   @impl ExForce.Client
   def request(%Tesla.Client{} = client, %Request{} = request) do
+    start_time = :erlang.monotonic_time()
+
     client
     |> Tesla.request(cast_tesla_request(request))
     |> cast_response()
+    |> then(fn {status, response} ->
+      duration = :erlang.monotonic_time() - start_time
+      {status, Map.put(response, :time, duration)}
+    end)
   end
 
   defp cast_tesla_request(%Request{} = request) do

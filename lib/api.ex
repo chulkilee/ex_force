@@ -1,5 +1,6 @@
 defmodule ExForce.API do
   require Logger
+  alias ExForce.Response
 
   @moduledoc """
   Simple wrapper for EXForce library for userpilot needs.
@@ -157,16 +158,24 @@ defmodule ExForce.API do
           binary(),
           binary(),
           binary(),
-          binary()
+          binary(),
+          list()
         ) :: any()
   def get_object_by_external_id(
         app_token,
         sobject_name,
         field_name,
-        field_value
+        field_value,
+        fields
       ) do
     with {:ok, client} <- get_client(app_token) do
-      case ExForce.get_sobject_by_external_id(client, field_value, field_name, sobject_name) do
+      case ExForce.get_sobject_by_external_id(
+             client,
+             field_value,
+             field_name,
+             sobject_name,
+             fields
+           ) do
         {:ok, %ExForce.SObject{data: data}} ->
           {:ok, data}
 
@@ -196,11 +205,16 @@ defmodule ExForce.API do
         class_name,
         class_body
       ) do
-    with {:ok, client} <- get_client(app_token) do
-      ExForce.create_sobject(client, "ApexClass", %{
-        Name: class_name,
-        Body: class_body
-      })
+    with {:ok, client} <- get_client(app_token),
+         {:ok, %{body: %{"id" => id}}} <-
+           ExForce.create_sobject(client, "ApexClass", %{
+             Name: class_name,
+             Body: class_body
+           }) do
+      {:ok, id}
+    else
+      {:error, body} ->
+        {:error, body}
     end
   end
 
@@ -212,13 +226,35 @@ defmodule ExForce.API do
         trigger_body,
         trigger_object
       ) do
-    with {:ok, client} <- get_client(app_token) do
-      ExForce.create_sobject(client, "ApexTrigger", %{
-        Name: trigger_name,
-        TableEnumOrId: trigger_object,
-        Body: trigger_body,
-        Status: "Active"
-      })
+    with {:ok, client} <- get_client(app_token),
+         {:ok, %{body: %{"id" => id}}} <-
+           ExForce.create_sobject(client, "ApexTrigger", %{
+             Name: trigger_name,
+             TableEnumOrId: trigger_object,
+             Body: trigger_body,
+             Status: "Active"
+           }) do
+      {:ok, id}
+    else
+      {:error, body} ->
+        {:error, body}
+    end
+  end
+
+  @spec create_custom_event(binary(), binary(), binary()) ::
+          {:error, any()} | {:ok, binary()}
+  def create_custom_event(
+        app_token,
+        custom_event_schema_name,
+        body
+      ) do
+    with {:ok, client} <- get_client(app_token),
+         {:ok, %{body: body, time: time}} <-
+           ExForce.create_sobject(client, custom_event_schema_name, body) do
+      {:ok, Map.put(body, :time, time)}
+    else
+      {:error, body} ->
+        {:error, body}
     end
   end
 
