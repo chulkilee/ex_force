@@ -10,7 +10,8 @@ defmodule ExForce.Response do
           opts: [any()],
           query: [{binary() | atom(), binary()}],
           status: integer() | nil,
-          url: binary()
+          url: binary(),
+          time: any()
         }
 
   defstruct [
@@ -20,6 +21,7 @@ defmodule ExForce.Response do
     :opts,
     :query,
     :status,
-    :url
+    :url,
+    :time
   ]
 end

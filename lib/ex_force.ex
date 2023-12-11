@@ -59,6 +59,7 @@ defmodule ExForce do
   @type soql :: String.t()
   @type query_id :: String.t()
   @type sobject :: %{id: String.t(), attributes: %{type: String.t()}}
+  @type fields :: list()
 
   defdelegate build_client(instance_url), to: Client
   defdelegate build_client(instance_url, opts), to: Client
@@ -167,11 +168,15 @@ defmodule ExForce do
 
   See [SObject Rows by External ID](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_upsert.htm)
   """
-  @spec get_sobject_by_external_id(client, any, field_name, sobject_name) ::
+  @spec get_sobject_by_external_id(client, any, field_name, sobject_name, fields) ::
           {:ok, SObject.t()} | {:error, any}
-  def get_sobject_by_external_id(client, field_value, field_name, sobject_name),
+  def get_sobject_by_external_id(client, field_value, field_name, sobject_name, fields),
     do:
-      do_get_sobject(client, "sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}")
+      do_get_sobject(
+        client,
+        "sobjects/#{sobject_name}/#{field_name}/#{URI.encode(field_value)}",
+        fields
+      )
 
   @doc """
   Retrieves a SObject by relationship field.
@@ -207,7 +212,7 @@ defmodule ExForce do
     end
   end
 
-  defp do_get_sobject(client, path, fields \\ []) do
+  defp do_get_sobject(client, path, fields) do
     case Client.request(client, %Request{
            method: :get,
            url: path,
@@ -282,12 +287,17 @@ defmodule ExForce do
 
   See [SObject Rows](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_sobject_basic_info.htm)
   """
-  @spec create_sobject(client, sobject_name, map) :: {:ok, sobject_id} | {:error, any}
+  @spec create_sobject(client, sobject_name, map) :: {:ok, any()} | {:error, any}
   def create_sobject(client, name, attrs) do
     case Client.request(client, %Request{method: :post, url: "sobjects/#{name}/", body: attrs}) do
-      {:ok, %Response{status: 201, body: %{"id" => id, "success" => true}}} -> {:ok, id}
-      {:ok, %Response{body: body}} -> {:error, body}
-      {:error, _} = other -> other
+      {:ok, %Response{status: 201, body: body, time: time}} ->
+        {:ok, %{body: body, time: time}}
+
+      {:ok, %Response{body: body, time: time}} ->
+        {:error, %{body: body, time: time}}
+
+      {:error, _} = other ->
+        other
     end
   end
 
