@@ -97,6 +97,8 @@ defmodule ExForce.API do
   def get_objects_paginated(app_token, object, param_list, per_page, page)
       when object in ["Contact", "Lead", "Account"] do
     with {:ok, client} <- get_client(app_token) do
+      param_list = ["Id" | Enum.reject(param_list, &is_nil/1)]
+
       ExForce.query_stream(
         client,
         "SELECT #{Enum.join(param_list, " ,")} FROM #{object} LIMIT #{per_page} OFFSET #{per_page * page}"
