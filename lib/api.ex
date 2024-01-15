@@ -167,18 +167,19 @@ defmodule ExForce.API do
         sobject_name,
         field_name,
         field_value,
-        fields
+        _fields
       ) do
     with {:ok, client} <- get_client(app_token) do
-      case ExForce.get_sobject_by_external_id(
+      case ExForce.query(
              client,
-             field_value,
-             field_name,
-             sobject_name,
-             fields
+             "SELECT FIELDS(STANDARD) FROM #{sobject_name} WHERE #{field_name} = '#{field_value}' LIMIT 1"
            ) do
-        {:ok, %ExForce.SObject{data: data}} ->
-          {:ok, data}
+        {:ok, %ExForce.QueryResult{done: true, records: list}} when list == [] ->
+          {:error, "NOT_FOUND"}
+
+        {:ok, %ExForce.QueryResult{done: true, records: list}} ->
+          record = List.first(list)
+          Map.put(record.data, "Id", record.id)
 
         {:error,
          [
@@ -187,15 +188,7 @@ defmodule ExForce.API do
              "message" => _message
            }
          ]} ->
-          # re-auth
           {:error, code}
-
-        {:error, list} ->
-          list
-          |> List.last()
-          |> String.split("/")
-          |> List.last()
-          |> (&get_object_by_id(app_token, &1, sobject_name)).()
       end
     end
   end
