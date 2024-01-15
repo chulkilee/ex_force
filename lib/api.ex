@@ -179,7 +179,7 @@ defmodule ExForce.API do
 
         {:ok, %ExForce.QueryResult{done: true, records: list}} ->
           record = List.first(list)
-          Map.put(record.data, "Id", record.id)
+          {:ok, Map.put(record.data, "Id", record.id)}
 
         {:error,
          [
