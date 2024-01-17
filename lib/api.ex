@@ -167,6 +167,87 @@ defmodule ExForce.API do
         sobject_name,
         field_name,
         field_value,
+        fields
+      ) do
+    with {:ok, client} <- get_client(app_token) do
+      case ExForce.get_sobject_by_external_id(
+             client,
+             field_value,
+             field_name,
+             sobject_name,
+             fields
+           ) do
+        {:ok, %ExForce.SObject{data: data}} ->
+          {:ok, data}
+
+        {:error,
+         [
+           %{
+             "errorCode" => code,
+             "message" => _message
+           }
+         ]} ->
+          # re-auth
+          {:error, code}
+
+        {:error, list} ->
+          list
+          |> List.last()
+          |> String.split("/")
+          |> List.last()
+          |> (&get_object_by_id(app_token, &1, sobject_name)).()
+      end
+    end
+  end
+
+  @doc """
+  Example:
+  ExForce.API.search_object_by_field("NX-44d03690","Customer","Userpilot_Id__c","userpilot456")
+  """
+  @spec search_object_by_field(
+          binary(),
+          binary(),
+          binary(),
+          binary(),
+          list()
+        ) :: any()
+  def search_object_by_field(
+        app_token,
+        sobject_name,
+        field_name,
+        field_value,
+        fields
+      )
+      when fields != [] do
+    with {:ok, client} <- get_client(app_token) do
+      case ExForce.query(
+             client,
+             "SELECT #{Enum.join(fields, " ,")} FROM #{sobject_name} WHERE #{field_name} = '#{field_value}' LIMIT 1"
+           ) do
+        {:ok, %ExForce.QueryResult{done: true, records: list}} when list == [] ->
+          {:error, "NOT_FOUND"}
+
+        {:ok, %ExForce.QueryResult{done: true, records: list}} ->
+          record = List.first(list)
+          {:ok, Map.put(record.data, "Id", record.id)}
+
+        {:error,
+         [
+           %{
+             "errorCode" => code,
+             "message" => _message
+           }
+         ]} ->
+          {:error, code}
+      end
+    end
+  end
+
+  def search_object_by_field(
+        app_token,
+        sobject_name,
+        field_name,
+        field_value,
         _fields
       ) do
     with {:ok, client} <- get_client(app_token) do
