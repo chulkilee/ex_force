@@ -70,13 +70,14 @@ defmodule ExForce.API do
   ExForce.API.get_object_attributes("NX-44d03690","Contact")
   """
   def get_object_attributes(app_token, object) do
-    with {:ok, client} <- get_client(app_token) do
-      {:ok, %{"fields" => fields}} = ExForce.describe_sobject(client, object)
-
+    with {:ok, client} <- get_client(app_token),
+         {:ok, %{"fields" => fields}} <- ExForce.describe_sobject(client, object) do
       fields
       |> Enum.map(fn field ->
         %{title: field["label"], id: field["name"], type: field["type"]}
       end)
+    else
+      error -> error
     end
   end
 
