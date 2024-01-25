@@ -361,4 +361,24 @@ defmodule ExForce.API do
       ExForce.create_custom_object_schema(client, access_token, schema)
     end
   end
+
+  @spec get_installed_packages(String.t()) ::
+          {:error, any()} | {:ok, binary()}
+  def get_installed_packages(app_token) do
+    with {:ok, client} <- get_client(app_token) do
+      ExForce.tooling_query(
+        client,
+        URI.encode(
+          "SELECT Id, SubscriberPackageId, SubscriberPackage.NamespacePrefix," <>
+            "SubscriberPackage.Name, SubscriberPackageVersion.Id," <>
+            "SubscriberPackageVersion.Name, SubscriberPackageVersion.MajorVersion," <>
+            "SubscriberPackageVersion.MinorVersion," <>
+            "SubscriberPackageVersion.PatchVersion," <>
+            "SubscriberPackageVersion.BuildNumber, " <>
+            "SubscriberPackageVersion.InstallValidationStatus " <>
+            "FROM InstalledSubscriberPackage"
+        )
+      )
+    end
+  end
 end

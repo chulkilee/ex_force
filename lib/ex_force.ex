@@ -354,6 +354,25 @@ defmodule ExForce do
   end
 
   @doc """
+
+  Run Tooling API query
+
+  """
+  @spec tooling_query(client, String.t()) :: {:ok, map} | {:error, any}
+  def tooling_query(client, query) do
+    case Client.request(client, %Request{method: :get, url: "tooling/query?q=#{query}"}) do
+      {:ok, %Response{status: 200, body: %{"records" => records} = _body}} ->
+        {:ok, records}
+
+      {:ok, %Response{body: body}} ->
+        {:error, body}
+
+      {:error, _} = other ->
+        other
+    end
+  end
+
+  @doc """
   Executes the SOQL query and get the result of it, including deleted or archived objects.
 
   [QueryAll](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_queryall.htm)
