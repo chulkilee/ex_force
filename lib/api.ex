@@ -109,10 +109,14 @@ defmodule ExForce.API do
          [
            %{
              "errorCode" => code,
-             "message" => _message
+             "message" => message
            }
          ]} ->
           # re-auth
+          Logger.error(
+            "Error while fetching #{object} for #{app_token} from Salesforce: #{code} with message #{message}"
+          )
+
           code
 
         result ->
