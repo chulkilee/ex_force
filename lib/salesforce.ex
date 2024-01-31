@@ -57,6 +57,13 @@ defmodule Salesforce do
             config: Map.put(app.config, :access_token, access_token),
             client: client
           })
+        else
+          error ->
+            Logger.warn(
+              "Failed to authenticate for app_token #{app.app_token} with salesforce: #{inspect(error)}"
+            )
+
+            applications
         end
       end)
 
@@ -78,7 +85,7 @@ defmodule Salesforce do
         {:noreply, %State{state | applications: applications}}
 
       {:error, reason} ->
-        {:stop, reason}
+        {:error, reason}
     end
   end
 
@@ -99,7 +106,7 @@ defmodule Salesforce do
         {:reply, response, %State{state | applications: applications}}
 
       {:error, reason} ->
-        {:stop, reason}
+        {:error, reason}
     end
   end
 
@@ -116,7 +123,7 @@ defmodule Salesforce do
         {:reply, refresh_token, %State{state | applications: applications}}
 
       {:error, reason} ->
-        {:stop, reason}
+        {:error, reason}
     end
   end
 
