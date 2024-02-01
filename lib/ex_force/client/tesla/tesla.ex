@@ -89,11 +89,12 @@ defmodule ExForce.Client.Tesla do
     |> cast_response()
     |> then(fn {status, response} ->
       case status do
-        :ok ->
+        {:ok, resp} when is_map(resp) ->
           duration = :erlang.monotonic_time() - start_time
           {status, Map.put(response, :time, duration)}
+
         _error ->
-            {status, response}
+          {status, response}
       end
     end)
   end
