@@ -93,6 +93,14 @@ defmodule ExForce do
     end
   end
 
+  def info(client, "https://test.salesforce.com" <> id_path) do
+    case Client.request(client, %Request{method: :get, url: id_path}) do
+      {:ok, %Response{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Response{body: body}} -> {:error, body}
+      {:error, _} = other -> other
+    end
+  end
+
   @doc """
   Lists available resources for the specific API version.
 
